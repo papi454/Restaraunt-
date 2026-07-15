@@ -307,12 +307,6 @@ html[data-theme="dark"] .chip.active{background:var(--ember);border-color:var(--
     <p class="tag">Sign in to your restaurant workspace</p>
     <div class="role-grid" id="role-grid"></div>
 
-    <!-- Firebase-Auth email/password login (admin, supervisor, waiter, cashier) -->
-    <div id="login-fields-standard">
-      <input type="email" id="login-email" placeholder="Email address" value="alex@emberpos.test" autocomplete="username">
-      <input type="password" id="login-password" placeholder="Password" value="demo1234" autocomplete="current-password">
-    </div>
-
     <!-- Kitchen staff sign in with their name only, per shared-terminal workflow -->
     <div id="login-fields-kitchen" style="display:none;">
       <select id="login-kitchen-name"></select>
@@ -320,7 +314,6 @@ html[data-theme="dark"] .chip.active{background:var(--ember);border-color:var(--
 
     <p class="field-error" id="login-error"></p>
     <button class="btn-primary" onclick="doLogin()">Sign in →</button>
-    <p class="login-note">Auth: Firebase-ready (mock session until keys are added) · DB: Supabase-ready</p>
   </div>
 </div>
 
