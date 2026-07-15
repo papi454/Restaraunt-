@@ -320,7 +320,6 @@ html[data-theme="dark"] .chip.active{background:var(--ember);border-color:var(--
 
     <p class="field-error" id="login-error"></p>
     <button class="btn-primary" onclick="doLogin()">Sign in →</button>
-    <p class="login-note">Auth: Firebase-ready (mock session until keys are added) · DB: Supabase-ready</p>
   </div>
 </div>
 
@@ -712,18 +711,6 @@ const TABLES = [
   {id:'T5',seats:2,status:'cleaning',locationId:'loc1'},{id:'T6',seats:2,status:'available',locationId:'loc2'},
   {id:'T7',seats:4,status:'occupied',waiter:'Peter O.',since:6,locationId:'loc2'},{id:'T8',seats:8,status:'available',locationId:'loc2'},
   {id:'T9',seats:4,status:'available',locationId:'loc3'},{id:'T10',seats:2,status:'available',locationId:'loc3'},
-];
-
-let nextStaffId = 8;
-const STAFF = [
-  {id:0,name:'Restaurant Owner',role:'Admin',email:'ember@restaraunt.com',orders:0,sales:0,commission:0,tips:0,perf:100,status:'On shift',locationId:'all'},
-  {id:1,name:'Grace Njoroge',role:'Waiter',email:'grace@emberpos.test',orders:34,sales:38400,commission:6,tips:2100,perf:92,status:'On shift',locationId:'loc1'},
-  {id:2,name:'John Kamau',role:'Waiter',email:'john@emberpos.test',orders:29,sales:31200,commission:6,tips:1850,perf:87,status:'On shift',locationId:'loc1'},
-  {id:3,name:'Peter Otieno',role:'Waiter',email:'peter@emberpos.test',orders:18,sales:19800,commission:5,tips:900,perf:74,status:'Off shift',locationId:'loc2'},
-  {id:4,name:'Amina Hassan',role:'Supervisor',email:'amina@emberpos.test',orders:0,sales:0,commission:0,tips:0,perf:95,status:'On shift',locationId:'loc1'},
-  {id:5,name:'Brian Mutiso',role:'Kitchen',email:'',orders:0,sales:0,commission:0,tips:0,perf:88,status:'On shift',locationId:'loc1'},
-  {id:6,name:'Diana Wambui',role:'Cashier',email:'diana@emberpos.test',orders:0,sales:0,commission:0,tips:0,perf:91,status:'On shift',locationId:'loc1'},
-  {id:7,name:'Naomi Chebet',role:'Kitchen',email:'',orders:0,sales:0,commission:0,tips:0,perf:83,status:'Off shift',locationId:'loc2'},
 ];
 
 const INVENTORY = [
@@ -2012,14 +1999,6 @@ RENDER.settings = function(){
       <input id="new-loc-name" placeholder="New location name" style="flex:1;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--paper);color:var(--ink);">
       <button class="btn btn-ember" onclick="addLocation()">Add location</button>
     </div>
-  </div>
-  <div class="card" style="margin-top:16px;">
-    <div class="card-head"><h3>Backend connection status</h3></div>
-    <p style="font-size:13px;">Supabase: ${BACKEND.supabaseReady?'<span class="badge badge-ok">Connected</span>':'<span class="badge badge-neutral">Not configured — using local mock data</span>'}</p>
-    <p style="font-size:13px;">Firebase Auth: ${BACKEND.firebaseReady?'<span class="badge badge-ok">Connected</span>':'<span class="badge badge-neutral">Not configured — using mock login</span>'}</p>
-    <p style="font-size:13px;">Saved changes persisting in this browser: ${Storage.isPersistent?'<span class="badge badge-ok">Yes</span>':'<span class="badge badge-danger">No — changes will be lost on reload</span>'}</p>
-    <p style="color:var(--ink-soft);font-size:12px;">Add your project keys to the <code>CONFIG</code> object near the top of the script to go live — no other code changes needed.</p>
-  </div>`;
 };
 function saveTaxSettings(){
   const label = document.getElementById('set-taxlabel').value.trim();
