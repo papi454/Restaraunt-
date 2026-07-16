@@ -322,7 +322,7 @@ html[data-theme="dark"] .chip.active{background:var(--ember);border-color:var(--
 
     <p class="field-error" id="login-error"></p>
     <button class="btn-primary" onclick="doLogin()">Sign in →</button>
-    <p class="login-note"> WELCOME TO EMBER RESTARAUNT</p>
+    <p class="login-note">WELCOME TO EMBER RESTARAUNT</p>
   </div>
 </div>
 
@@ -509,10 +509,12 @@ const Auth = {
     if(BACKEND.firebaseReady){
       try{
         const cred = await firebase.auth().signInWithEmailAndPassword(email, password);
-        // Firebase only proves *identity* — role/name comes from your staff
-        // records. BACKEND: once the `staff` table exists in Supabase, swap
-        // this local lookup for: await BACKEND.client.from('staff').select('*').eq('email', email).single();
-        const staffRecord = STAFF.find(s=>s.email && s.email.toLowerCase()===String(email).toLowerCase());
+        // Refresh staff data right now, at the moment of login — not just
+        // whatever was loaded when the page first opened. This is what
+        // prevents a stale cached staff list (from earlier testing) or a
+        // schema that was only just applied from blocking a valid login.
+        await DB.loadAll();
+        const staffRecord = STAFF.find(s=>s.email && s.email.trim().toLowerCase()===String(email).trim().toLowerCase());
         if(!staffRecord) throw new Error('Signed in, but no staff record with this email exists yet. Ask an admin to add you under Staff.');
         return { uid: cred.user.uid, email, role: staffRecord.role.toLowerCase(), name: staffRecord.name };
       }catch(e){
@@ -534,6 +536,7 @@ const Auth = {
   async signInAsKitchen(name){
     // Kitchen terminals are shared hardware — staff just pick their name so
     // every ticket/action is still attributed to a real person.
+    await DB.loadAll();
     const staff = STAFF.find(s=>s.name===name && s.role==='Kitchen');
     if(!staff) throw new Error('Select your name to continue.');
     return { uid:'kitchen-'+staff.id, email:null, role:'kitchen', name:staff.name, locationId:staff.locationId };
@@ -2305,3 +2308,5 @@ function stopLiveSync(){
 </script>
 </body>
 </html>
+ember-pos-prototype.html
+Displaying ember-pos-prototype.html.
