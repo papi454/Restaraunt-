@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ember POS — Restaurant Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* ============ DESIGN TOKENS ============ */
+:root{
+  --paper:#F7F4EE; --paper-elevated:#FFFFFF; --ink:#181A1F; --ink-soft:#666F7D;
+  --ember:#D9480F; --ember-soft:#FBE3D3; --ember-strong:#B93E0C;
+  --basil:#2F6D4F; --basil-soft:#E1EEE7;
+  --saffron:#C98A00; --saffron-soft:#FBF0D3;
+  --danger:#B3261E; --danger-soft:#F8DEDC;
+  --border:#E5E0D4; --shadow: 0 1px 2px rgba(20,15,5,.04), 0 8px 24px -12px rgba(20,15,5,.18);
+  --radius:14px; --radius-sm:8px;
+  --font-display:'Fraunces', Georgia, serif; --font-body:'Inter', system-ui, sans-serif; --font-mono:'JetBrains Mono', monospace;
+}
+html[data-theme="dark"]{
+  --paper:#15171C; --paper-elevated:#1D2027; --ink:#F1EEE6; --ink-soft:#9AA2B1;
+  --ember:#FF7A3D; --ember-soft:#3A2416; --ember-strong:#FF9862;
+  --basil:#57B389; --basil-soft:#17301F;
+  --saffron:#F2B705; --saffron-soft:#332A0B;
+  --danger:#FF6B60; --danger-soft:#3A1917;
+  --border:#2A2D36; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-body);transition:background .2s,color .2s;}
+::selection{background:var(--ember-soft);}
+button{font-family:inherit;}
+h1,h2,h3{font-family:var(--font-display);margin:0;letter-spacing:-.01em;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px;}
+a{color:inherit;}
+
+/* ============ LOGIN ============ */
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:
+  radial-gradient(circle at 20% 20%, var(--ember-soft), transparent 45%),
+  radial-gradient(circle at 80% 80%, var(--basil-soft), transparent 45%), var(--paper);}
+.login-card{width:420px;max-width:92vw;background:var(--paper-elevated);border:1px solid var(--border);border-radius:20px;padding:40px 36px;box-shadow:var(--shadow);}
+.login-brand{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.flame{width:26px;height:26px;color:var(--ember);}
+.login-brand span{font-family:var(--font-display);font-size:22px;font-weight:600;}
+.login-card p.tag{color:var(--ink-soft);font-size:13.5px;margin:0 0 28px;}
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;}
+.role-btn{border:1.5px solid var(--border);background:var(--paper);border-radius:var(--radius-sm);padding:14px 10px;cursor:pointer;text-align:left;transition:.15s;color:var(--ink);}
+.role-btn:hover{border-color:var(--ember);transform:translateY(-1px);}
+.role-btn.active{border-color:var(--ember);background:var(--ember-soft);}
+.role-btn .rtitle{font-weight:700;font-size:13.5px;display:block;}
+.role-btn .rdesc{font-size:11.5px;color:var(--ink-soft);}
+.login-card input{width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--paper);color:var(--ink);font-size:14px;margin-bottom:16px;}
+.login-card input:focus{outline:none;border-color:var(--ember);}
+.btn-primary{width:100%;padding:13px;border-radius:var(--radius-sm);border:none;background:var(--ember);color:#fff;font-weight:700;font-size:14px;cursor:pointer;transition:.15s;}
+.btn-primary:hover{background:var(--ember-strong);}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+.login-note{font-size:11.5px;color:var(--ink-soft);text-align:center;margin-top:16px;}
+.firebase-status{font-size:12px;padding:10px;border-radius:8px;margin-bottom:16px;text-align:center;}
+.firebase-status.ready{background:var(--basil-soft);color:var(--basil);}
+.firebase-status.error{background:var(--danger-soft);color:var(--danger);}
+
+/* ============ APP SHELL ============ */
+#app{display:none;min-height:100vh;}
+.shell{display:grid;grid-template-columns:236px 1fr;min-height:100vh;}
+.sidebar{background:var(--paper-elevated);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 14px;position:sticky;top:0;height:100vh;}
+.brand{display:flex;align-items:center;gap:9px;padding:6px 10px 22px;}
+.brand span{font-family:var(--font-display);font-weight:600;font-size:18px;}
+.nav-group-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);padding:14px 12px 6px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--ink-soft);margin-bottom:2px;transition:.12s;}
+.nav-item svg{width:17px;height:17px;flex-shrink:0;}
+.nav-item:hover{background:var(--paper);color:var(--ink);}
+.nav-item.active{background:var(--ember-soft);color:var(--ember);}
+.sidebar-foot{margin-top:auto;border-top:1px solid var(--border);padding-top:14px;}
+.user-chip{display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--ember);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+.user-chip .un{font-size:13px;font-weight:700;}
+.user-chip .ur{font-size:11px;color:var(--ink-soft);}
+.switch-role{width:100%;margin-top:10px;padding:9px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--ink-soft);font-size:12px;font-weight:600;cursor:pointer;}
+.switch-role:hover{border-color:var(--ember);color:var(--ember);}
+
+.main{padding:22px 30px 50px;min-width:0;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px;gap:16px;}
+.topbar h1{font-size:23px;font-weight:600;}
+.topbar .sub{color:var(--ink-soft);font-size:13px;margin-top:2px;}
+.top-actions{display:flex;align-items:center;gap:10px;}
+.icon-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--border);background:var(--paper-elevated);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);}
+.icon-btn svg{width:17px;height:17px;}
+.icon-btn:hover{border-color:var(--ember);color:var(--ember);}
+.pill{padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700;}
+.pill-live{background:var(--basil-soft);color:var(--basil);display:inline-flex;align-items:center;gap:5px;}
+.pill-live::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--basil);animation:pulse 1.6s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ============ CARDS / GRID ============ */
+.grid{display:grid;gap:16px;}
+.cols-4{grid-template-columns:repeat(4,1fr);}
+.cols-3{grid-template-columns:repeat(3,1fr);}
+.cols-2{grid-template-columns:2fr 1fr;}
+@media(max-width:1100px){.cols-4{grid-template-columns:repeat(2,1fr);}.cols-3,.cols-2{grid-template-columns:1fr;}}
+
+.card{background:var(--paper-elevated);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow);}
+.kpi .kpi-label{font-size:12px;color:var(--ink-soft);font-weight:600;display:flex;align-items:center;justify-content:space-between;}
+.kpi .kpi-val{font-family:var(--font-display);font-size:28px;font-weight:600;margin-top:6px;}
+.kpi .kpi-delta{font-size:12px;margin-top:6px;font-weight:700;}
+.kpi .kpi-delta.up{color:var(--basil);}
+.kpi .kpi-delta.down{color:var(--danger);}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.card-head h3{font-size:15px;font-weight:700;font-family:var(--font-body);}
+.card-head .muted{font-size:12px;color:var(--ink-soft);}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;color:var(--ink-soft);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--border);}
+td{padding:10px 10px;border-bottom:1px solid var(--border);}
+tr:last-child td{border-bottom:none;}
+.badge{padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;display:inline-block;}
+.badge-ok{background:var(--basil-soft);color:var(--basil);}
+.badge-warn{background:var(--saffron-soft);color:var(--saffron);}
+.badge-danger{background:var(--danger-soft);color:var(--danger);}
+.badge-neutral{background:var(--border);color:var(--ink-soft);}
+
+.btn{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--paper-elevated);color:var(--ink);font-size:12.5px;font-weight:700;cursor:pointer;}
+.btn:hover{border-color:var(--ember);color:var(--ember);}
+.btn-ember{background:var(--ember);color:#fff;border-color:var(--ember);}
+.btn-ember:hover{background:var(--ember-strong);}
+
+.order-card{border-left:4px solid var(--border);padding:12px;margin-bottom:8px;border-radius:8px;cursor:pointer;transition:.12s;}
+.order-card:hover{background:var(--paper);}
+.order-card.new{border-left-color:var(--saffron);}
+.order-card.preparing{border-left-color:var(--ember);}
+.order-card.ready{border-left-color:var(--basil);}
+.order-card.served{border-left-color:var(--ink-soft);}
+
+/* ============ MODAL ============ */
+.overlay{position:fixed;inset:0;background:rgba(10,8,4,.5);display:none;align-items:center;justify-content:center;z-index:50;backdrop-filter:blur(2px);}
+.overlay.show{display:flex;}
+.modal{background:var(--paper-elevated);border-radius:16px;padding:26px;width:420px;max-width:92vw;box-shadow:var(--shadow);max-height:86vh;overflow:auto;}
+.modal h3{font-size:17px;margin-bottom:14px;}
+
+.progress-bar{height:6px;background:var(--border);border-radius:99px;overflow:hidden;margin-top:8px;}
+.progress-bar > div{height:100%;background:var(--ember);border-radius:99px;}
+
+.empty-state{text-align:center;padding:50px 20px;color:var(--ink-soft);}
+.empty-state svg{width:40px;height:40px;margin-bottom:10px;opacity:.5;}
+
+.view{display:none;}
+.view.active{display:block;animation:fadein .25s ease;}
+@keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+@media(max-width:820px){
+  .shell{grid-template-columns:1fr;}
+  .sidebar{position:fixed;left:-260px;top:0;width:236px;z-index:60;transition:.2s;box-shadow:var(--shadow);}
+  .sidebar.open{left:0;}
+  .main{padding:16px;}
+  .cols-4,.cols-3{grid-template-columns:repeat(2,1fr);}
+}
+
+.clockout-btn{width:100%;margin-top:8px;padding:9px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--ink-soft);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+.clockout-btn:hover{border-color:var(--danger);color:var(--danger);}
+.clockout-btn svg{width:14px;height:14px;}
+
+/* ============ TOASTS ============ */
+#toast-stack{position:fixed;bottom:20px;right:20px;z-index:100;display:flex;flex-direction:column;gap:8px;}
+.toast{background:var(--ink);color:var(--paper);padding:11px 16px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:var(--shadow);max-width:320px;animation:fadein .2s ease;}
+.toast.error{background:var(--danger);color:#fff;}
+.toast.success{background:var(--basil);color:#fff;}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN SCREEN ============ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-brand">
+      <svg class="flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c1 3-2 4-2 7a4 4 0 108 0c0-1-1-2-1-2 1 4-1 5-2 5-2 0-2-2-1-4 .5-1 .5-2 0-3-1 2-3 2-4-1-1 2 0 3-1 4-2 2-4 0-4-2 0-2 1-3 2-4z" fill="currentColor"/></svg>
+      <span>Ember POS</span>
+    </div>
+    <p class="tag">Sign in to your restaurant workspace</p>
+    
+    <div id="firebase-status-badge" class="firebase-status error">
+      🔄 Checking Firebase connection...
+    </div>
+
+    <div class="role-grid" id="role-grid"></div>
+
+    <!-- Email/Password login -->
+    <div id="login-fields-standard">
+      <input type="email" id="login-email" placeholder="Email address" autocomplete="username">
+      <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+    </div>
+
+    <p class="field-error" id="login-error"></p>
+    <button class="btn-primary" id="login-btn" onclick="doLogin()" disabled>Sign in →</button>
+    <p class="login-note">✓ Using your Firebase credentials</p>
+  </div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="app">
+  <div class="shell" id="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <svg class="flame" style="width:20px;height:20px;" viewBox="0 0 24 24" fill="none"><path d="M12 2c1 3-2 4-2 7a4 4 0 108 0c0-1-1-2-1-2 1 4-1 5-2 5-2 0-2-2-1-4 .5-1 .5-2 0-3-1 2-3 2-4-1-1 2 0 3-1 4-2 2-4 0-4-2 0-2 1-3 2-4z" fill="currentColor"/></svg>
+        <span>Ember</span>
+      </div>
+      <nav id="nav-container"></nav>
+      <div class="sidebar-foot">
+        <div class="user-chip">
+          <div class="avatar" id="avatar-init">A</div>
+          <div>
+            <div class="un" id="user-name">User</div>
+            <div class="ur" id="user-role">Role</div>
+          </div>
+        </div>
+        <button class="clockout-btn" onclick="logout()" style="display:block;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+          <span class="label-text">Sign out</span>
+        </button>
+      </div>
+    </aside>
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h1 id="page-title">Welcome</h1>
+          <div class="sub" id="page-sub"><span id="today-date"></span></div>
+        </div>
+        <div class="top-actions">
+          <button class="icon-btn" title="Notifications" onclick="toggleNotifDropdown()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+            <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+          </button>
+          <div class="notif-wrap">
+            <div class="notif-dropdown" id="notif-dropdown" style="display:none;position:absolute;right:0;top:46px;width:320px;max-height:400px;overflow:auto;background:var(--paper-elevated);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);z-index:70;">
+              <div class="notif-head" style="padding:12px 14px;border-bottom:1px solid var(--border);font-weight:700;font-size:13px;display:flex;justify-content:space-between;align-items:center;">
+                <span>Notifications</span>
+              </div>
+              <div id="notif-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="views"></div>
+    </main>
+  </div>
+</div>
+
+<div class="overlay" id="modal-overlay">
+  <div class="modal" id="modal-body"></div>
+</div>
+<div id="toast-stack"></div>
+
+<script>
+/* =====================================================================
+   ICONS
+===================================================================== */
+const ICONS = {
+  home:'<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
+  menu:'<rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/>',
+  table:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/>',
+  box:'<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
+  users:'<circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.5 3-6 6.5-6s6.5 2.5 6.5 6"/><circle cx="17" cy="9" r="2.6"/><path d="M21.5 20c0-2.8-2-5-4.5-5.6"/>',
+  chart:'<path d="M4 20V10M12 20V4M20 20v-7"/>',
+  fire:'<path d="M12 2c1 3-2 4-2 7a4 4 0 108 0c0-1-1-2-1-2 1 4-1 5-2 5-2 0-2-2-1-4 .5-1 .5-2 0-3-1 2-3 2-4-1-1 2 0 3-1 4-2 2-4 0-4-2 0-2 1-3 2-4z"/>',
+  card:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+  cash:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M9 10a2 2 0 012-2h1.5a2 2 0 010 4H10a2 2 0 000 4h2a2 2 0 002-2"/>',
+  list:'<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>',
+  logout:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
+  alert:'<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/>',
+};
+function icon(name,cls=''){return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`;}
+
+/* =====================================================================
+   FIREBASE CONFIG — LIVE MODE (No fallback to mock users)
+===================================================================== */
+const CONFIG = {
+  firebase: {
+    apiKey: 'AIzaSyDBi2tkdDX2DmNNPoQ3xe0l_ix48u13Ar8',
+    authDomain: 'restaraunt-938ec.firebaseapp.com',
+    projectId: 'restaraunt-938ec',
+    storageBucket: 'restaraunt-938ec.firebasestorage.app',
+    messagingSenderId: '152970762068',
+    appId: '1:152970762068:web:50667f7aca3d05edc71ac1',
+  },
+};
+
+const BACKEND = { firebaseReady:false };
+try{
+  if(CONFIG.firebase.apiKey && window.firebase){
+    firebase.initializeApp(CONFIG.firebase);
+    BACKEND.firebaseReady = true;
+    console.log('✓ Firebase initialized successfully');
+  }
+}catch(e){ 
+  console.error('Firebase initialization error:', e.message);
+}
+
+/* =====================================================================
+   STORAGE ADAPTER
+===================================================================== */
+const MEM_FALLBACK = {};
+const Storage = {
+  async get(key, fallback=null){
+    try{
+      if(window.storage){ const r = await window.storage.get(key, false); return r ? JSON.parse(r.value) : fallback; }
+    }catch(e){}
+    try{
+      const v = localStorage.getItem(key);
+      return v!==null ? JSON.parse(v) : fallback;
+    }catch(e){ return MEM_FALLBACK[key] ?? fallback; }
+  },
+  async set(key, value){
+    try{ if(window.storage){ await window.storage.set(key, JSON.stringify(value), false); return true; } }catch(e){}
+    try{ localStorage.setItem(key, JSON.stringify(value)); return true; }
+    catch(e){ MEM_FALLBACK[key]=value; return true; }
+  }
+};
+
+/* =====================================================================
+   AUTH ADAPTER — LIVE FIREBASE ONLY (No mock fallback)
+===================================================================== */
+const Auth = {
+  async signIn(email, password){
+    if(!BACKEND.firebaseReady){
+      throw new Error('Firebase not connected. Check your internet connection and reload the page.');
+    }
+    try{
+      const cred = await firebase.auth().signInWithEmailAndPassword(email, password);
+      // Look up staff record to get role and name
+      const staffRecord = STAFF.find(s=>s.email && s.email.toLowerCase()===String(email).toLowerCase());
+      if(!staffRecord){
+        throw new Error('Account exists in Firebase, but no staff record found. Contact your admin to add you in the staff list.');
+      }
+      return { 
+        uid: cred.user.uid, 
+        email: cred.user.email, 
+        role: staffRecord.role.toLowerCase(), 
+        name: staffRecord.name 
+      };
+    }catch(e){
+      const map = {
+        'auth/wrong-password':'Incorrect password.',
+        'auth/invalid-credential':'Incorrect email or password.',
+        'auth/user-not-found':'No account found with this email. Ask your admin to create it in Firebase.',
+        'auth/invalid-email':'Enter a valid email address.',
+        'auth/too-many-requests':'Too many login attempts. Try again in a few minutes.',
+        'auth/operation-not-allowed':'Email/password sign-in is disabled. Contact admin.',
+      };
+      throw new Error(map[e.code] || e.message);
+    }
+  },
+  async signOut(){
+    if(BACKEND.firebaseReady){ 
+      try{ await firebase.auth().signOut(); }catch(e){ console.error('Sign out error:', e); } 
+    }
+  }
+};
+
+/* =====================================================================
+   STAFF DATA (Must match users in your Firebase Console)
+===================================================================== */
+const ROLES = [
+  {id:'admin', title:'Owner / Admin', desc:'Full control & reports'},
+  {id:'supervisor', title:'Supervisor', desc:'Inventory & staff'},
+  {id:'waiter', title:'Waiter', desc:'Orders & tables'},
+  {id:'kitchen', title:'Kitchen', desc:'Order display'},
+  {id:'cashier', title:'Cashier', desc:'Payments'},
+];
+
+// UPDATE THIS LIST WITH YOUR FIREBASE USERS
+// Email must match exactly what you created in Firebase Console
+const STAFF = [
+  {id:0,name:'Admin User',role:'Admin',email:'admin@emberpos.test',status:'On shift',locationId:'all'},
+  {id:1,name:'Grace Njoroge',role:'Waiter',email:'grace@emberpos.test',status:'On shift',locationId:'loc1'},
+  {id:2,name:'John Kamau',role:'Waiter',email:'john@emberpos.test',status:'On shift',locationId:'loc1'},
+  {id:3,name:'Brian Mutiso',role:'Kitchen',email:'brian@emberpos.test',status:'On shift',locationId:'loc1'},
+  {id:4,name:'Naomi Chebet',role:'Kitchen',email:'naomi@emberpos.test',status:'On shift',locationId:'loc2'},
+  {id:5,name:'Diana Wambui',role:'Cashier',email:'diana@emberpos.test',status:'On shift',locationId:'loc1'},
+];
+
+const LOCATIONS = [
+  {id:'loc1', name:'Ember — Westlands (Main)'},
+  {id:'loc2', name:'Ember — Karen Branch'},
+  {id:'loc3', name:'Ember — CBD Express'},
+];
+
+const NAV = {
+  admin: [
+    {id:'dashboard', label:'Dashboard', icon:'home'},
+    {id:'inventory', label:'Inventory', icon:'box'},
+    {id:'staff', label:'Staff', icon:'users'},
+    {id:'audit', label:'Audit log', icon:'list'},
+  ],
+  waiter: [
+    {id:'tables', label:'My tables', icon:'table'},
+    {id:'neworder', label:'New order', icon:'menu'},
+  ],
+  kitchen: [
+    {id:'kds', label:'Kitchen display', icon:'fire'},
+  ],
+  cashier: [
+    {id:'payments', label:'Payments due', icon:'card'},
+  ],
+};
+
+const MENU = [
+  {id:1,name:'Grilled Beef Burger',cat:'Mains',price:850,emoji:'🍔',prep:12},
+  {id:2,name:'Nyama Choma Platter',cat:'Mains',price:1400,emoji:'🍖',prep:20},
+  {id:3,name:'Margherita Pizza',cat:'Mains',price:1100,emoji:'🍕',prep:15},
+  {id:4,name:'Grilled Tilapia',cat:'Mains',price:1250,emoji:'🐟',prep:18},
+];
+
+const TABLES = [
+  {id:'T1',seats:2,status:'available',locationId:'loc1'},
+  {id:'T2',seats:4,status:'occupied',waiter:'Grace',locationId:'loc1'},
+  {id:'T3',seats:4,status:'occupied',waiter:'Grace',locationId:'loc1'},
+  {id:'T4',seats:6,status:'reserved',locationId:'loc1'},
+];
+
+const INVENTORY = [
+  {id:1,name:'Beef Patty',unit:'pcs',stock:42,status:'low',locationId:'loc1'},
+  {id:2,name:'Burger Buns',unit:'pcs',stock:120,status:'ok',locationId:'loc1'},
+];
+
+let ORDERS_KITCHEN = [
+  {id:'#1042',table:'T2',waiter:'Grace',status:'new',items:[{n:'Nyama Choma Platter',q:1}],locationId:'loc1'},
+  {id:'#1041',table:'T2',waiter:'Grace',status:'preparing',items:[{n:'Margherita Pizza',q:2}],locationId:'loc1'},
+  {id:'#1039',table:'T3',waiter:'Grace',status:'ready',items:[{n:'Grilled Tilapia',q:1}],locationId:'loc1'},
+];
+
+let NOTIFICATIONS = [];
+let AUDIT_LOG = [];
+
+const TITLES = {
+  dashboard:['Dashboard','Live summary'],
+  inventory:['Inventory','Stock levels'],
+  staff:['Staff','Performance & roles'],
+  audit:['Audit log','Activity log'],
+  tables:['My tables','Table floor plan'],
+  neworder:['New order','Create an order'],
+  kds:['Kitchen display','Live orders'],
+  payments:['Payments due','Ready to close'],
+};
+
+let STATE = {
+  role: null,
+  userName: 'User',
+  userEmail: null,
+  theme: 'dark',
+  view: null,
+  cart: [],
+  selectedTable: null,
+  locationId: 'loc1',
+  sessionId: 'sess-'+Math.random().toString(36).slice(2),
+};
+
+/* =====================================================================
+   INIT / LOGIN
+===================================================================== */
+function initRoleGrid(){
+  const g = document.getElementById('role-grid');
+  g.innerHTML = ROLES.map(r=>`
+    <button class="role-btn active" data-role="${r.id}" style="cursor:default;opacity:0.7;">
+      <span class="rtitle">${r.title}</span>
+      <span class="rdesc">${r.desc}</span>
+    </button>`).join('');
+}
+
+async function doLogin(){
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value.trim();
+  const errEl = document.getElementById('login-error');
+  const btn = document.getElementById('login-btn');
+  
+  errEl.classList.remove('show');
+  errEl.textContent = '';
+
+  if(!email || !password){
+    errEl.textContent = 'Enter email and password.';
+    errEl.classList.add('show');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+
+  try{
+    const user = await Auth.signIn(email, password);
+    STATE.role = user.role;
+    STATE.userName = user.name;
+    STATE.userEmail = user.email;
+    
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='block';
+    document.getElementById('user-name').textContent = STATE.userName;
+    document.getElementById('user-role').textContent = ROLES.find(r=>r.id===STATE.role).title;
+    document.getElementById('avatar-init').textContent = STATE.userName.trim()[0].toUpperCase();
+    
+    buildNav();
+    const firstView = NAV[STATE.role][0].id;
+    goView(firstView);
+  }catch(e){
+    errEl.textContent = e.message || 'Sign-in failed.';
+    errEl.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'Sign in →';
+  }
+}
+
+function logout(){
+  Auth.signOut();
+  STATE = {...STATE, role:null, view:null, cart:[], selectedTable:null};
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('login-error').classList.remove('show');
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-btn').disabled = false;
+  document.getElementById('login-btn').textContent = 'Sign in →';
+}
+
+/* =====================================================================
+   NAV / ROUTER
+===================================================================== */
+function buildNav(){
+  const items = NAV[STATE.role] || [];
+  document.getElementById('nav-container').innerHTML = items.map(i=>`
+    <div class="nav-item" data-view="${i.id}" onclick="goView('${i.id}')">
+      ${icon(i.icon)} <span>${i.label}</span>
+    </div>`).join('');
+}
+
+function goView(id){
+  STATE.view = id;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.view===id));
+  const [t,s] = TITLES[id] || [id,''];
+  document.getElementById('page-title').textContent = t;
+  document.getElementById('page-sub').innerHTML = s + ' · <span id="today-date"></span>';
+  setDate();
+  const el = document.getElementById('views');
+  el.innerHTML = RENDER[id] ? RENDER[id]() : `<div class="empty-state">${icon('alert')}<div>Coming soon</div></div>`;
+}
+
+function setDate(){
+  const d = new Date();
+  document.querySelectorAll('#today-date').forEach(e=>e.textContent = d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}));
+}
+
+/* =====================================================================
+   UI HELPERS
+===================================================================== */
+function showToast(msg, kind=''){
+  const t = document.createElement('div');
+  t.className = 'toast ' + kind;
+  t.textContent = msg;
+  document.getElementById('toast-stack').appendChild(t);
+  setTimeout(()=>t.remove(), 3000);
+}
+
+function openModal(html){
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeModal(){
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+
+function toggleNotifDropdown(){
+  document.getElementById('notif-dropdown').classList.toggle('show');
+}
+
+function renderNotifDropdown(){
+  const list = document.getElementById('notif-list');
+  const unread = NOTIFICATIONS.filter(n=>!n.read);
+  document.getElementById('notif-badge').style.display = unread.length ? 'flex' : 'none';
+  document.getElementById('notif-badge').textContent = unread.length;
+  list.innerHTML = NOTIFICATIONS.length
+    ? NOTIFICATIONS.map(n=>`<div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:12.5px;"><div>${n.title}</div><div style="color:var(--ink-soft);font-size:11px;margin-top:2px;">${new Date(n.ts).toLocaleString()}</div></div>`).join('')
+    : `<div style="padding:24px;text-align:center;color:var(--ink-soft);font-size:12.5px;">No notifications</div>`;
+}
+
+/* =====================================================================
+   VIEWS / RENDERING
+===================================================================== */
+const RENDER = {};
+
+RENDER.dashboard = function(){
+  return `<div class="grid cols-3">
+    <div class="card kpi"><div class="kpi-label">Total Orders</div><div class="kpi-val">${ORDERS_KITCHEN.length}</div></div>
+    <div class="card kpi"><div class="kpi-label">Staff Count</div><div class="kpi-val">${STAFF.length}</div></div>
+    <div class="card kpi"><div class="kpi-label">Menu Items</div><div class="kpi-val">${MENU.length}</div></div>
+  </div>`;
+};
+
+RENDER.kds = function(){
+  const orders = ORDERS_KITCHEN.filter(o=>o.locationId===STATE.locationId || STATE.locationId==='all');
+  const statuses = ['new','preparing','ready'];
+  return `<div class="grid cols-3">
+    ${statuses.map(s=>`
+      <div class="card">
+        <div class="card-head"><h3 style="text-transform:capitalize;">${s}</h3></div>
+        ${orders.filter(o=>o.status===s).map(o=>`
+          <div class="order-card ${o.status}">
+            <strong>${o.id}</strong> — ${o.items.map(i=>`${i.q}x ${i.n}`).join(', ')}<br>
+            <small style="color:var(--ink-soft);">Table ${o.table} • ${o.waiter}</small>
+          </div>
+        `).join('') || '<div style="color:var(--ink-soft);text-align:center;padding:20px;font-size:12px;">No orders</div>'}
+      </div>
+    `).join('')}
+  </div>`;
+};
+
+RENDER.tables = function(){
+  return `<div class="grid cols-2">
+    ${TABLES.map(t=>`
+      <div class="card" style="cursor:pointer;">
+        <div class="card-head"><h3>${t.id}</h3><span class="badge badge-${t.status==='occupied'?'warn':'ok'}">${t.status}</span></div>
+        <p>${t.seats} seats</p>
+        ${t.waiter ? `<small style="color:var(--ink-soft);">Waiter: ${t.waiter}</small>` : ''}
+      </div>
+    `).join('')}
+  </div>`;
+};
+
+RENDER.neworder = function(){
+  return `<div class="card"><h3>New Order</h3><p style="color:var(--ink-soft);">Order management coming soon.</p></div>`;
+};
+
+RENDER.inventory = function(){
+  return `<table><thead><tr><th>Item</th><th>Stock</th><th>Status</th></tr></thead><tbody>
+    ${INVENTORY.map(i=>`<tr><td>${i.name}</td><td>${i.stock} ${i.unit}</td><td><span class="badge badge-${i.status}">${i.status}</span></td></tr>`).join('')}
+  </tbody></table>`;
+};
+
+RENDER.staff = function(){
+  return `<table><thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Status</th></tr></thead><tbody>
+    ${STAFF.map(s=>`<tr><td>${s.name}</td><td>${s.role}</td><td style="font-size:12px;">${s.email}</td><td><span class="badge badge-${s.status==='On shift'?'ok':'neutral'}">${s.status}</span></td></tr>`).join('')}
+  </tbody></table>`;
+};
+
+RENDER.payments = function(){
+  return `<div class="empty-state">${icon('card')}<div>No payments due</div></div>`;
+};
+
+RENDER.audit = function(){
+  return `<div class="card"><h3>Audit Log</h3><p style="color:var(--ink-soft);">Activity tracking enabled.</p></div>`;
+};
+
+/* =====================================================================
+   FIREBASE STATUS CHECK
+===================================================================== */
+async function checkFirebaseStatus(){
+  const badge = document.getElementById('firebase-status-badge');
+  const btn = document.getElementById('login-btn');
+  
+  if(!BACKEND.firebaseReady){
+    badge.className = 'firebase-status error';
+    badge.textContent = '❌ Firebase not connected';
+    btn.disabled = true;
+    return false;
+  }
+
+  try{
+    // Test Firebase by checking current auth state
+    await new Promise((resolve, reject)=>{
+      const unsubscribe = firebase.auth().onAuthStateChanged(
+        user=>{ unsubscribe(); resolve(user); },
+        err=>{ unsubscribe(); reject(err); }
+      );
+    });
+    
+    badge.className = 'firebase-status ready';
+    badge.textContent = '✅ Firebase connected — ready to sign in';
+    btn.disabled = false;
+    return true;
+  }catch(e){
+    badge.className = 'firebase-status error';
+    badge.textContent = '⚠️ Firebase error: ' + e.message;
+    btn.disabled = true;
+    return false;
+  }
+}
+
+/* =====================================================================
+   BOOT
+===================================================================== */
+(async function boot(){
+  STATE.theme = await Storage.get('theme', 'dark');
+  document.documentElement.setAttribute('data-theme', STATE.theme);
+  
+  const savedOrders = await Storage.get('orders', null);
+  if(savedOrders){
+    ORDERS_KITCHEN = savedOrders;
+  }
+  
+  initRoleGrid();
+  setDate();
+  renderNotifDropdown();
+  
+  // Check Firebase connection
+  await checkFirebaseStatus();
+  
+  // Periodically check Firebase status
+  setInterval(checkFirebaseStatus, 5000);
+})();
+
+document.getElementById('modal-overlay').addEventListener('click', e=>{ 
+  if(e.target.id==='modal-overlay') closeModal(); 
+});
+</script>
+</body>
+</html>
