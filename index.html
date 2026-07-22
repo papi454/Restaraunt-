@@ -4,7 +4,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23d9622b' d='M12 2c1 3-2 4-2 7a4 4 0 108 0c0-1-1-2-1-2 1 4-1 5-2 5-2 0-2-2-1-4 .5-1 .5-2 0-3-1 2-3 2-4-1-1 2 0 3-1 4-2 2-4 0-4-2 0-2 1-3 2-4z'/%3E%3C/svg%3E">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ember POS — Restaurant Management</title>
+<title>Delight Sherpherd — Restaurant Management</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e8622c'%3E%3Cpath d='M12 2c1 3-2 4-2 7a4 4 0 108 0c0-1-1-2-1-2 1 4-1 5-2 5-2 0-2-2-1-4 .5-1 .5-2 0-3-1 2-3 2-4-1-1 2 0 3-1 4-2 2-4 0-4-2 0-2 1-3 2-4z'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -304,7 +304,7 @@ html[data-theme="dark"] .chip.active{background:var(--ember);border-color:var(--
   <div class="login-card">
     <div class="login-brand">
       <svg class="flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c1 3-2 4-2 7a4 4 0 108 0c0-1-1-2-1-2 1 4-1 5-2 5-2 0-2-2-1-4 .5-1 .5-2 0-3-1 2-3 2-4-1-1 2 0 3-1 4-2 2-4 0-4-2 0-2 1-3 2-4z" fill="currentColor"/></svg>
-      <span>Ember POS</span>
+      <span>Delight Sherpherd</span>
     </div>
     <p class="tag">Sign in to your restaurant workspace</p>
     <div class="role-grid" id="role-grid"></div>
@@ -312,13 +312,13 @@ html[data-theme="dark"] .chip.active{background:var(--ember);border-color:var(--
     <!-- Firebase-Auth email/password login — same flow for every role, -->
     <!-- including Kitchen, so every staff member has their own credentials. -->
     <div id="login-fields-standard">
-      <input type="email" id="login-email" placeholder="Email address" value="ember@restaraunt.com" autocomplete="username">
+      <input type="email" id="login-email" placeholder="Email address" autocomplete="username">
       <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
     </div>
 
     <p class="field-error" id="login-error"></p>
     <button class="btn-primary" onclick="doLogin()">Sign in →</button>
-    <p class="login-note">Auth: Firebase-ready (mock session until keys are added) · DB: Supabase-ready</p>
+    <p class="login-note">Welcome To Delight Shepherd Restaraunt</p>
   </div>
 </div>
 
@@ -330,7 +330,7 @@ html[data-theme="dark"] .chip.active{background:var(--ember);border-color:var(--
       <div class="brand" style="justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:9px;">
           <svg class="flame" viewBox="0 0 24 24" fill="none" style="width:22px;height:22px;"><path d="M12 2c1 3-2 4-2 7a4 4 0 108 0c0-1-1-2-1-2 1 4-1 5-2 5-2 0-2-2-1-4 .5-1 .5-2 0-3-1 2-3 2-4-1-1 2 0 3-1 4-2 2-4 0-4-2 0-2 1-3 2-4z" fill="currentColor"/></svg>
-          <span>Ember POS</span>
+          <span>Delight Sherpherd</span>
         </div>
         <button class="collapse-btn" onclick="toggleSidebar()" title="Collapse sidebar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 4l-8 8 8 8"/></svg>
@@ -478,11 +478,6 @@ async function ensureSupabaseSession(){
     const {data:{session}} = await BACKEND.client.auth.getSession();
     if(session) return;
     const {error} = await BACKEND.client.auth.signInAnonymously();
-    if(error){
-      console.warn('Supabase anonymous sign-in failed:', error.message);
-      showToast(`Database security session could not start: ${error.message}. Enable "Anonymous sign-ins" in Supabase → Authentication → Providers.`, 'error');
-    }
-  }catch(e){ console.warn('Supabase anonymous sign-in error:', e.message); }
 }
 
 /* =====================================================================
@@ -767,17 +762,7 @@ const ROLES = [
   {id:'supervisor', title:'Supervisor', desc:'Inventory & staff'},
   {id:'waiter', title:'Waiter', desc:'Orders & tables'},
   {id:'kitchen', title:'Kitchen', desc:'Order display'},
-  {id:'cashier', title:'Cashier', desc:'Payments'},
-];
-
-// BACKEND: these become Firebase Authentication users (email/password + a
-// custom claim for role). Never ship real passwords like this in production.
-const MOCK_USERS = [
-  {email:'alex@emberpos.test', password:'demo1234', role:'admin', name:'Alex Mwangi'},
-  {email:'amina@emberpos.test', password:'demo1234', role:'supervisor', name:'Amina Hassan'},
-  {email:'grace@emberpos.test', password:'demo1234', role:'waiter', name:'Grace Njoroge'},
-  {email:'john@emberpos.test', password:'demo1234', role:'waiter', name:'John Kamau'},
-  {email:'diana@emberpos.test', password:'demo1234', role:'cashier', name:'Diana Wambui'},
+  {id:'cashier', title:'Cashier', desc:'Payments & Inventory'},
 ];
 
 const LOCATIONS = [
