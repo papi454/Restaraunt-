@@ -4,7 +4,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23d9622b' d='M12 2c1 3-2 4-2 7a4 4 0 108 0c0-1-1-2-1-2 1 4-1 5-2 5-2 0-2-2-1-4 .5-1 .5-2 0-3-1 2-3 2-4-1-1 2 0 3-1 4-2 2-4 0-4-2 0-2 1-3 2-4z'/%3E%3C/svg%3E">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ember POS — Restaurant Management</title>
+<title>Delight Shepherd — Restaurant Management</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e8622c'%3E%3Cpath d='M12 2c1 3-2 4-2 7a4 4 0 108 0c0-1-1-2-1-2 1 4-1 5-2 5-2 0-2-2-1-4 .5-1 .5-2 0-3-1 2-3 2-4-1-1 2 0 3-1 4-2 2-4 0-4-2 0-2 1-3 2-4z'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -312,13 +312,13 @@ html[data-theme="dark"] .chip.active{background:var(--ember);border-color:var(--
     <!-- Firebase-Auth email/password login — same flow for every role, -->
     <!-- including Kitchen, so every staff member has their own credentials. -->
     <div id="login-fields-standard">
-      <input type="email" id="login-email" placeholder="Email address" value="ember@restaraunt.com" autocomplete="username">
+      <input type="email" id="login-email" placeholder="Email address"autocomplete="username">
       <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
     </div>
 
     <p class="field-error" id="login-error"></p>
     <button class="btn-primary" onclick="doLogin()">Sign in →</button>
-    <p class="login-note">Auth: Firebase-ready (mock session until keys are added) · DB: Supabase-ready</p>
+    <p class="login-note">Welcome To Delight Shepherd Restaraunt</p>
   </div>
 </div>
 
@@ -463,27 +463,14 @@ try{
   }
 }catch(e){ console.warn('Firebase not initialized, using mock auth:', e.message); }
 
-// SECURITY STOPGAP: the public Supabase key alone is not a secret — every
-// Supabase web app exposes it, by design. But RLS policies scoped only to
-// "the request has this public key" can't tell a real app request apart
-// from someone who copied the key out of view-source. Signing in
-// anonymously here gives every request a real Supabase session, so RLS
-// can require "to authenticated" instead of being wide open — closing off
-// casual key-scraping without needing a server layer. (Requires Anonymous
-// Sign-ins to be turned on: Supabase Dashboard → Authentication →
-// Providers → Anonymous.)
+
 async function ensureSupabaseSession(){
   if(!BACKEND.supabaseReady) return;
   try{
     const {data:{session}} = await BACKEND.client.auth.getSession();
     if(session) return;
-    const {error} = await BACKEND.client.auth.signInAnonymously();
-    if(error){
-      console.warn('Supabase anonymous sign-in failed:', error.message);
-      showToast(`Database security session could not start: ${error.message}. Enable "Anonymous sign-ins" in Supabase → Authentication → Providers.`, 'error');
+    const {error} = await BACKEND.client.auth.signInAnonymously()
     }
-  }catch(e){ console.warn('Supabase anonymous sign-in error:', e.message); }
-}
 
 /* =====================================================================
    STORAGE ADAPTER — works inside Claude artifact previews (window.storage)
