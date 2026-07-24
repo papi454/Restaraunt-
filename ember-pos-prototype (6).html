@@ -1,0 +1,2545 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23d9622b' d='M12 2c1 3-2 4-2 7a4 4 0 108 0c0-1-1-2-1-2 1 4-1 5-2 5-2 0-2-2-1-4 .5-1 .5-2 0-3-1 2-3 2-4-1-1 2 0 3-1 4-2 2-4 0-4-2 0-2 1-3 2-4z'/%3E%3C/svg%3E">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ember POS — Restaurant Management</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e8622c'%3E%3Cpath d='M12 2c1 3-2 4-2 7a4 4 0 108 0c0-1-1-2-1-2 1 4-1 5-2 5-2 0-2-2-1-4 .5-1 .5-2 0-3-1 2-3 2-4-1-1 2 0 3-1 4-2 2-4 0-4-2 0-2 1-3 2-4z'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<!-- BACKEND-READY: these SDKs are loaded so the DB/AUTH adapters below can talk to real
+     Supabase + Firebase projects the moment CONFIG (see script section) is filled in.
+     Until then, everything falls back to local mock data automatically. -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* ============ DESIGN TOKENS ============ */
+:root{
+  --paper:#F7F4EE; --paper-elevated:#FFFFFF; --ink:#181A1F; --ink-soft:#666F7D;
+  --ember:#D9480F; --ember-soft:#FBE3D3; --ember-strong:#B93E0C;
+  --basil:#2F6D4F; --basil-soft:#E1EEE7;
+  --saffron:#C98A00; --saffron-soft:#FBF0D3;
+  --danger:#B3261E; --danger-soft:#F8DEDC;
+  --border:#E5E0D4; --shadow: 0 1px 2px rgba(20,15,5,.04), 0 8px 24px -12px rgba(20,15,5,.18);
+  --radius:14px; --radius-sm:8px;
+  --font-display:'Fraunces', Georgia, serif; --font-body:'Inter', system-ui, sans-serif; --font-mono:'JetBrains Mono', monospace;
+}
+html[data-theme="dark"]{
+  --paper:#15171C; --paper-elevated:#1D2027; --ink:#F1EEE6; --ink-soft:#9AA2B1;
+  --ember:#FF7A3D; --ember-soft:#3A2416; --ember-strong:#FF9862;
+  --basil:#57B389; --basil-soft:#17301F;
+  --saffron:#F2B705; --saffron-soft:#332A0B;
+  --danger:#FF6B60; --danger-soft:#3A1917;
+  --border:#2A2D36; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-body);transition:background .2s,color .2s;}
+::selection{background:var(--ember-soft);}
+button{font-family:inherit;}
+h1,h2,h3{font-family:var(--font-display);margin:0;letter-spacing:-.01em;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px;}
+a{color:inherit;}
+
+/* ============ LOGIN ============ */
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:
+  radial-gradient(circle at 20% 20%, var(--ember-soft), transparent 45%),
+  radial-gradient(circle at 80% 80%, var(--basil-soft), transparent 45%), var(--paper);}
+.login-card{width:420px;max-width:92vw;background:var(--paper-elevated);border:1px solid var(--border);border-radius:20px;padding:40px 36px;box-shadow:var(--shadow);}
+.login-brand{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.flame{width:26px;height:26px;color:var(--ember);}
+.login-brand span{font-family:var(--font-display);font-size:22px;font-weight:600;}
+.login-card p.tag{color:var(--ink-soft);font-size:13.5px;margin:0 0 28px;}
+.role-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;}
+.role-btn{border:1.5px solid var(--border);background:var(--paper);border-radius:var(--radius-sm);padding:14px 10px;cursor:pointer;text-align:left;transition:.15s;color:var(--ink);}
+.role-btn:hover{border-color:var(--ember);transform:translateY(-1px);}
+.role-btn.active{border-color:var(--ember);background:var(--ember-soft);}
+.role-btn .rtitle{font-weight:700;font-size:13.5px;display:block;}
+.role-btn .rdesc{font-size:11.5px;color:var(--ink-soft);}
+.login-card input{width:100%;padding:12px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--paper);color:var(--ink);font-size:14px;margin-bottom:16px;}
+.login-card input:focus{outline:none;border-color:var(--ember);}
+.btn-primary{width:100%;padding:13px;border-radius:var(--radius-sm);border:none;background:var(--ember);color:#fff;font-weight:700;font-size:14px;cursor:pointer;transition:.15s;}
+.btn-primary:hover{background:var(--ember-strong);}
+.login-note{font-size:11.5px;color:var(--ink-soft);text-align:center;margin-top:16px;}
+
+/* ============ APP SHELL ============ */
+#app{display:none;min-height:100vh;}
+.shell{display:grid;grid-template-columns:236px 1fr;min-height:100vh;}
+.sidebar{background:var(--paper-elevated);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 14px;position:sticky;top:0;height:100vh;}
+.brand{display:flex;align-items:center;gap:9px;padding:6px 10px 22px;}
+.brand span{font-family:var(--font-display);font-weight:600;font-size:18px;}
+.nav-group-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);padding:14px 12px 6px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;font-size:13.5px;font-weight:600;color:var(--ink-soft);margin-bottom:2px;transition:.12s;}
+.nav-item svg{width:17px;height:17px;flex-shrink:0;}
+.nav-item:hover{background:var(--paper);color:var(--ink);}
+.nav-item.active{background:var(--ember-soft);color:var(--ember);}
+.sidebar-foot{margin-top:auto;border-top:1px solid var(--border);padding-top:14px;}
+.user-chip{display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--ember);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+.user-chip .un{font-size:13px;font-weight:700;}
+.user-chip .ur{font-size:11px;color:var(--ink-soft);}
+.switch-role{width:100%;margin-top:10px;padding:9px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--ink-soft);font-size:12px;font-weight:600;cursor:pointer;}
+.switch-role:hover{border-color:var(--ember);color:var(--ember);}
+
+.main{padding:22px 30px 50px;min-width:0;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px;gap:16px;}
+.topbar h1{font-size:23px;font-weight:600;}
+.topbar .sub{color:var(--ink-soft);font-size:13px;margin-top:2px;}
+.top-actions{display:flex;align-items:center;gap:10px;}
+.icon-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--border);background:var(--paper-elevated);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);}
+.icon-btn svg{width:17px;height:17px;}
+.icon-btn:hover{border-color:var(--ember);color:var(--ember);}
+.pill{padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700;}
+.pill-live{background:var(--basil-soft);color:var(--basil);display:inline-flex;align-items:center;gap:5px;}
+.pill-live::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--basil);animation:pulse 1.6s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ============ CARDS / GRID ============ */
+.grid{display:grid;gap:16px;}
+.cols-4{grid-template-columns:repeat(4,1fr);}
+.cols-3{grid-template-columns:repeat(3,1fr);}
+.cols-2{grid-template-columns:2fr 1fr;}
+@media(max-width:1100px){.cols-4{grid-template-columns:repeat(2,1fr);}.cols-3,.cols-2{grid-template-columns:1fr;}}
+
+.card{background:var(--paper-elevated);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow);}
+.kpi .kpi-label{font-size:12px;color:var(--ink-soft);font-weight:600;display:flex;align-items:center;justify-content:space-between;}
+.kpi .kpi-val{font-family:var(--font-display);font-size:28px;font-weight:600;margin-top:6px;}
+.kpi .kpi-delta{font-size:12px;margin-top:6px;font-weight:700;}
+.kpi .kpi-delta.up{color:var(--basil);}
+.kpi .kpi-delta.down{color:var(--danger);}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.card-head h3{font-size:15px;font-weight:700;font-family:var(--font-body);}
+.card-head .muted{font-size:12px;color:var(--ink-soft);}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;color:var(--ink-soft);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--border);}
+td{padding:10px 10px;border-bottom:1px solid var(--border);}
+tr:last-child td{border-bottom:none;}
+.badge{padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;display:inline-block;}
+.badge-ok{background:var(--basil-soft);color:var(--basil);}
+.badge-warn{background:var(--saffron-soft);color:var(--saffron);}
+.badge-danger{background:var(--danger-soft);color:var(--danger);}
+.badge-neutral{background:var(--border);color:var(--ink-soft);}
+
+.btn{padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--paper-elevated);color:var(--ink);font-size:12.5px;font-weight:700;cursor:pointer;}
+.btn:hover{border-color:var(--ember);color:var(--ember);}
+.btn-ember{background:var(--ember);border-color:var(--ember);color:#fff;}
+.btn-ember:hover{background:var(--ember-strong);color:#fff;}
+.btn-sm{padding:5px 10px;font-size:11.5px;}
+
+.searchbar{display:flex;align-items:center;gap:8px;background:var(--paper-elevated);border:1px solid var(--border);border-radius:10px;padding:8px 12px;min-width:230px;}
+.searchbar input{border:none;background:transparent;outline:none;font-size:13px;color:var(--ink);width:100%;}
+.searchbar svg{width:15px;height:15px;color:var(--ink-soft);flex-shrink:0;}
+.filters{display:flex;gap:8px;flex-wrap:wrap;}
+.chip{padding:6px 12px;border-radius:99px;border:1px solid var(--border);background:var(--paper-elevated);font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-soft);}
+.chip.active{background:var(--ink);color:var(--paper);border-color:var(--ink);}
+html[data-theme="dark"] .chip.active{background:var(--ember);border-color:var(--ember);color:#fff;}
+
+/* ============ MENU GRID ============ */
+.menu-item-card{background:var(--paper-elevated);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:.15s;}
+.menu-item-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
+.mi-photo{height:88px;display:flex;align-items:center;justify-content:center;font-size:34px;}
+.mi-body{padding:12px 14px;}
+.mi-body .miname{font-weight:700;font-size:13.5px;}
+.mi-body .micat{font-size:11px;color:var(--ink-soft);margin:2px 0 8px;}
+.mi-body .miprice{font-family:var(--font-mono);font-weight:700;color:var(--ember);font-size:14px;}
+
+/* ============ TABLE FLOOR PLAN ============ */
+.floor{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;}
+@media(max-width:1000px){.floor{grid-template-columns:repeat(3,1fr);}}
+.floor-table{aspect-ratio:1;border-radius:16px;border:2px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:4px;transition:.15s;background:var(--paper-elevated);}
+.floor-table:hover{transform:scale(1.03);}
+.floor-table .tnum{font-family:var(--font-display);font-size:20px;font-weight:700;}
+.floor-table .tseats{font-size:10.5px;color:var(--ink-soft);}
+.floor-table.available{border-color:var(--basil);background:var(--basil-soft);}
+.floor-table.occupied{border-color:var(--ember);background:var(--ember-soft);}
+.floor-table.reserved{border-color:var(--saffron);background:var(--saffron-soft);}
+.floor-table.cleaning{border-color:var(--ink-soft);opacity:.55;}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--ink-soft);margin-bottom:16px;flex-wrap:wrap;}
+.legend span{display:flex;align-items:center;gap:6px;}
+.dot{width:9px;height:9px;border-radius:50%;}
+
+/* ============ KDS TICKET RAIL (signature element) ============ */
+.kds-board{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:start;}
+@media(max-width:1100px){.kds-board{grid-template-columns:repeat(2,1fr);}}
+.kds-col-head{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);padding:0 4px 10px;display:flex;justify-content:space-between;}
+.ticket{
+  font-family:var(--font-mono);
+  background:var(--paper-elevated);
+  border:1px solid var(--border);
+  border-radius:2px;
+  margin-bottom:16px;
+  position:relative;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.ticket::before, .ticket::after{
+  content:'';position:absolute;left:0;right:0;height:8px;
+  background-image:radial-gradient(circle at 6px 4px, var(--paper) 4px, transparent 4.5px);
+  background-size:12px 8px; background-repeat:repeat-x;
+}
+.ticket::before{top:-4px;} .ticket::after{bottom:-4px;transform:rotate(180deg);}
+.ticket-head{padding:14px 14px 8px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px dashed var(--border);}
+.ticket-head .tnum{font-weight:700;font-size:15px;}
+.ticket-head .ttable{font-size:11px;color:var(--ink-soft);}
+.ticket-timer{font-weight:700;font-size:13px;padding:3px 8px;border-radius:6px;background:var(--basil-soft);color:var(--basil);}
+.ticket-timer.warn{background:var(--saffron-soft);color:var(--saffron);}
+.ticket-timer.late{background:var(--danger-soft);color:var(--danger);animation:pulse 1.2s infinite;}
+.ticket-body{padding:10px 14px;font-size:12.5px;}
+.ticket-body li{margin-bottom:5px;list-style:none;display:flex;justify-content:space-between;}
+.ticket-body ul{margin:0;padding:0;}
+.ticket-foot{padding:10px 14px 14px;display:flex;gap:8px;}
+.ticket-foot .btn{flex:1;justify-content:center;text-align:center;}
+
+/* ============ WAITER ORDER BUILDER ============ */
+.order-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;}
+@media(max-width:1000px){.order-layout{grid-template-columns:1fr;}}
+.cart-line{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.cart-line .qty-ctrl{display:flex;align-items:center;gap:8px;}
+.qty-ctrl button{width:20px;height:20px;border-radius:5px;border:1px solid var(--border);background:var(--paper);cursor:pointer;color:var(--ink);}
+.cart-total-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:var(--ink-soft);}
+.cart-total-row.grand{font-weight:800;font-size:16px;color:var(--ink);border-top:1px solid var(--border);padding-top:10px;margin-top:6px;}
+
+/* ============ MODAL ============ */
+.overlay{position:fixed;inset:0;background:rgba(10,8,4,.5);display:none;align-items:center;justify-content:center;z-index:50;backdrop-filter:blur(2px);}
+.overlay.show{display:flex;}
+.modal{background:var(--paper-elevated);border-radius:16px;padding:26px;width:420px;max-width:92vw;box-shadow:var(--shadow);max-height:86vh;overflow:auto;}
+.modal h3{font-size:17px;margin-bottom:14px;}
+.close-x{position:absolute;top:16px;right:16px;cursor:pointer;color:var(--ink-soft);}
+
+.progress-bar{height:6px;background:var(--border);border-radius:99px;overflow:hidden;margin-top:8px;}
+.progress-bar > div{height:100%;background:var(--ember);border-radius:99px;}
+
+.empty-state{text-align:center;padding:50px 20px;color:var(--ink-soft);}
+.empty-state svg{width:40px;height:40px;margin-bottom:10px;opacity:.5;}
+
+.view{display:none;}
+.view.active{display:block;animation:fadein .25s ease;}
+@keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+@media(max-width:820px){
+  .shell{grid-template-columns:1fr;}
+  .sidebar{position:fixed;left:-260px;top:0;width:236px;z-index:60;transition:.2s;box-shadow:var(--shadow);}
+  .sidebar.open{left:0;}
+  .main{padding:16px;}
+  .cols-4,.cols-3{grid-template-columns:repeat(2,1fr);}
+}
+
+/* ============ COLLAPSIBLE SIDEBAR ============ */
+.shell{transition:grid-template-columns .18s ease;}
+.shell.collapsed{grid-template-columns:76px 1fr;}
+.sidebar{transition:width .18s ease;}
+.collapse-btn{width:28px;height:28px;border-radius:8px;border:1px solid var(--border);background:var(--paper);color:var(--ink-soft);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.collapse-btn:hover{border-color:var(--ember);color:var(--ember);}
+.collapse-btn svg{width:14px;height:14px;transition:transform .18s;}
+.sidebar.collapsed .brand span,.sidebar.collapsed .nav-item span,.sidebar.collapsed .nav-group-label,
+.sidebar.collapsed .user-chip div,.sidebar.collapsed .switch-role span.label-text,.sidebar.collapsed .clockout-btn span.label-text{display:none;}
+.sidebar.collapsed .brand{justify-content:center;padding:6px 0 22px;}
+.sidebar.collapsed .nav-item{justify-content:center;}
+.sidebar.collapsed .user-chip{justify-content:center;}
+.sidebar.collapsed .collapse-btn svg{transform:rotate(180deg);}
+
+/* ============ NOTIFICATIONS ============ */
+.notif-wrap{position:relative;}
+.notif-badge{position:absolute;top:-4px;right:-4px;background:var(--ember);color:#fff;font-size:9.5px;font-weight:800;border-radius:99px;min-width:15px;height:15px;display:flex;align-items:center;justify-content:center;padding:0 3px;}
+.notif-dropdown{position:absolute;right:0;top:46px;width:320px;max-height:400px;overflow:auto;background:var(--paper-elevated);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);z-index:70;display:none;}
+.notif-dropdown.show{display:block;}
+.notif-head{padding:12px 14px;border-bottom:1px solid var(--border);font-weight:700;font-size:13px;display:flex;justify-content:space-between;align-items:center;}
+.notif-item{padding:10px 14px;border-bottom:1px solid var(--border);font-size:12.5px;}
+.notif-item:last-child{border-bottom:none;}
+.notif-item .nmeta{color:var(--ink-soft);font-size:11px;margin-top:2px;}
+.notif-empty{padding:24px;text-align:center;color:var(--ink-soft);font-size:12.5px;}
+
+/* ============ TOASTS ============ */
+#toast-stack{position:fixed;bottom:20px;right:20px;z-index:100;display:flex;flex-direction:column;gap:8px;}
+.toast{background:var(--ink);color:var(--paper);padding:11px 16px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:var(--shadow);max-width:320px;animation:fadein .2s ease;}
+.toast.error{background:var(--danger);color:#fff;}
+.toast.success{background:var(--basil);color:#fff;}
+
+/* ============ OFFLINE BANNER ============ */
+#offline-banner{display:none;background:var(--saffron-soft);color:var(--saffron);font-size:12.5px;font-weight:700;text-align:center;padding:8px;gap:8px;align-items:center;justify-content:center;}
+#offline-banner.show{display:flex;}
+
+/* ============ FORM ELEMENTS (modals) ============ */
+.form-group{margin-bottom:14px;}
+.form-group label{display:block;font-size:12px;font-weight:700;color:var(--ink-soft);margin-bottom:5px;}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--paper);color:var(--ink);font-size:13.5px;font-family:inherit;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--ember);}
+.field-error{color:var(--danger);font-size:11.5px;margin-top:4px;display:none;}
+.field-error.show{display:block;}
+.form-row{display:flex;gap:10px;}
+.form-row .form-group{flex:1;}
+
+/* ============ RECEIPT ============ */
+.receipt{font-family:var(--font-mono);background:var(--paper-elevated);border:1px dashed var(--border);border-radius:6px;padding:18px;font-size:12.5px;max-width:300px;margin:0 auto;}
+.receipt .rline{display:flex;justify-content:space-between;margin-bottom:4px;}
+.receipt hr{border:none;border-top:1px dashed var(--border);margin:10px 0;}
+.receipt .rhead{text-align:center;margin-bottom:10px;}
+.receipt .rhead .rtitle{font-family:var(--font-display);font-weight:700;font-size:16px;}
+.qr-box{display:flex;justify-content:center;margin:14px 0 6px;}
+.qr-box img,.qr-box canvas{background:#fff;padding:6px;border-radius:6px;}
+@media print{
+  body *{visibility:hidden;}
+  #print-area,#print-area *{visibility:visible;}
+  #print-area{position:absolute;left:0;top:0;width:100%;}
+}
+
+/* ============ LOCATION SWITCH ============ */
+.loc-switch{padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--paper-elevated);color:var(--ink);font-size:12.5px;font-weight:600;}
+
+.badge-void{background:var(--border);color:var(--ink-soft);text-decoration:line-through;}
+.clockout-btn{width:100%;margin-top:8px;padding:9px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;color:var(--ink-soft);font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+.clockout-btn:hover{border-color:var(--danger);color:var(--danger);}
+.clockout-btn svg{width:14px;height:14px;}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN SCREEN ============ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-brand">
+      <svg class="flame" viewBox="0 0 24 24" fill="none"><path d="M12 2c1 3-2 4-2 7a4 4 0 108 0c0-1-1-2-1-2 1 4-1 5-2 5-2 0-2-2-1-4 .5-1 .5-2 0-3-1 2-3 2-4-1-1 2 0 3-1 4-2 2-4 0-4-2 0-2 1-3 2-4z" fill="currentColor"/></svg>
+      <span>Ember POS</span>
+    </div>
+    <p class="tag">Sign in to your restaurant workspace</p>
+    <div class="role-grid" id="role-grid"></div>
+
+    <!-- Firebase-Auth email/password login — same flow for every role, -->
+    <!-- including Kitchen, so every staff member has their own credentials. -->
+    <div id="login-fields-standard">
+      <input type="email" id="login-email" placeholder="Email address" value="ember@restaraunt.com" autocomplete="username">
+      <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+    </div>
+
+    <p class="field-error" id="login-error"></p>
+    <button class="btn-primary" onclick="doLogin()">Sign in →</button>
+    <p class="login-note">Auth: Firebase-ready (mock session until keys are added) · DB: Supabase-ready</p>
+    <p class="login-note" style="opacity:.6;">Build 2026-07-17-3</p>
+  </div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="app">
+  <div id="offline-banner"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 1l22 22"/><path d="M16.72 11.06A10.94 10.94 0 0119 12.55"/><path d="M5 12.55a10.94 10.94 0 015.17-2.39"/><path d="M10.71 5.05A16 16 0 0122.58 9"/><path d="M1.42 9a15.91 15.91 0 014.7-2.88"/><path d="M8.53 16.11a6 6 0 016.95 0"/><path d="M12 20h.01"/></svg> You're offline — changes are being saved locally and will sync automatically once you're back online.</div>
+  <div class="shell" id="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand" style="justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:9px;">
+          <svg class="flame" viewBox="0 0 24 24" fill="none" style="width:22px;height:22px;"><path d="M12 2c1 3-2 4-2 7a4 4 0 108 0c0-1-1-2-1-2 1 4-1 5-2 5-2 0-2-2-1-4 .5-1 .5-2 0-3-1 2-3 2-4-1-1 2 0 3-1 4-2 2-4 0-4-2 0-2 1-3 2-4z" fill="currentColor"/></svg>
+          <span>Ember POS</span>
+        </div>
+        <button class="collapse-btn" onclick="toggleSidebar()" title="Collapse sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 4l-8 8 8 8"/></svg>
+        </button>
+      </div>
+      <div class="nav-group-label" id="loc-label">Location</div>
+      <select class="loc-switch" id="location-switch" onchange="changeLocation(this.value)" style="width:100%;margin-bottom:10px;"></select>
+      <nav id="nav-container"></nav>
+      <div class="sidebar-foot">
+        <div class="user-chip">
+          <div class="avatar" id="avatar-init">A</div>
+          <div>
+            <div class="un" id="user-name">Alex Mwangi</div>
+            <div class="ur" id="user-role">Admin</div>
+          </div>
+        </div>
+        <button class="clockout-btn" id="clockout-btn" onclick="clockOut()" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+          <span class="label-text">Clock out</span>
+        </button>
+        <button class="switch-role" onclick="logout()"><span class="label-text">Switch role / sign out</span></button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h1 id="page-title">Dashboard</h1>
+          <div class="sub" id="page-sub">Today, <span id="today-date"></span></div>
+        </div>
+        <div class="top-actions">
+          <span class="pill pill-live" id="conn-pill">Live</span>
+          <button class="icon-btn" onclick="toggleTheme()" title="Toggle theme">
+            <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          </button>
+          <div class="notif-wrap">
+            <button class="icon-btn" title="Notifications" onclick="toggleNotifDropdown()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+              <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+            </button>
+            <div class="notif-dropdown" id="notif-dropdown">
+              <div class="notif-head">
+                <span>Notifications</span>
+                <span id="notif-perm-status" style="cursor:pointer;" onclick="requestNotifPermission()"></span>
+                <span class="muted" style="cursor:pointer;font-weight:600;color:var(--ember);" onclick="markAllNotifsRead()">Mark all read</span>
+              </div>
+              <div id="notif-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="views"></div>
+    </main>
+  </div>
+</div>
+
+<div class="overlay" id="modal-overlay">
+  <div class="modal" id="modal-body"></div>
+</div>
+<div id="toast-stack"></div>
+
+<script>
+/* =====================================================================
+   ICONS
+===================================================================== */
+const ICONS = {
+  home:'<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/>',
+  menu:'<rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/>',
+  table:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/>',
+  box:'<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
+  users:'<circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.5 3-6 6.5-6s6.5 2.5 6.5 6"/><circle cx="17" cy="9" r="2.6"/><path d="M21.5 20c0-2.8-2-5-4.5-5.6"/>',
+  chart:'<path d="M4 20V10M12 20V4M20 20v-7"/>',
+  fire:'<path d="M12 2c1 3-2 4-2 7a4 4 0 108 0c0-1-1-2-1-2 1 4-1 5-2 5-2 0-2-2-1-4 .5-1 .5-2 0-3-1 2-3 2-4-1-1 2 0 3-1 4-2 2-4 0-4-2 0-2 1-3 2-4z"/>',
+  card:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+  cash:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M9 10a2 2 0 012-2h1.5a2 2 0 010 4H10a2 2 0 000 4h2a2 2 0 002-2"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+  truck:'<rect x="1" y="7" width="14" height="10" rx="1"/><path d="M15 10h4l3 3v4h-7z"/><circle cx="6" cy="18.5" r="1.6"/><circle cx="17.5" cy="18.5" r="1.6"/>',
+  percent:'<path d="M19 5L5 19"/><circle cx="7" cy="7" r="2.2"/><circle cx="17" cy="17" r="2.2"/>',
+  printer:'<path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1"/><path d="M6 17v4h12v-4"/>',
+  bell:'<path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  check:'<path d="M20 6L9 17l-5-5"/>',
+  alert:'<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/>',
+  wallet:'<rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="17" cy="14.5" r="1.3"/>',
+  tag:'<path d="M20.6 12.4L12.4 20.6a2 2 0 01-2.8 0l-7-7a2 2 0 010-2.8L10.8 2.6a2 2 0 011.4-.6H19a2 2 0 012 2v6.8a2 2 0 01-.6 1.4z"/><circle cx="15.5" cy="7.5" r="1.5"/>',
+  settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 01-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1H3a2 2 0 010-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.5V3a2 2 0 014 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.5 1H21a2 2 0 010 4h-.1a1.7 1.7 0 00-1.5 1z"/>',
+  list:'<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>',
+  logout:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
+  x:'<path d="M18 6L6 18M6 6l12 12"/>',
+  undo:'<path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-15-6.7L3 13"/>',
+};
+function icon(name,cls=''){return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`;}
+
+/* =====================================================================
+   BACKEND CONFIG
+   Fill these in once you have your Supabase + Firebase projects.
+   Everything works fully in "mock mode" until you do — no code changes
+   needed elsewhere, the DB / Auth adapters below switch automatically.
+===================================================================== */
+const CONFIG = {
+  supabase: {
+    url: 'https://xktgaefduxaqnrlseltq.supabase.co',
+    anonKey: 'sb_publishable_Q3PCcYpkd3GeTinspNRYUA_4aLmOnf8',
+  },
+  firebase: {
+    apiKey: 'AIzaSyDBi2tkdDX2DmNNPoQ3xe0l_ix48u13Ar8',
+    authDomain: 'restaraunt-938ec.firebaseapp.com',
+    projectId: 'restaraunt-938ec',
+    storageBucket: 'restaraunt-938ec.firebasestorage.app',
+    messagingSenderId: '152970762068',
+    appId: '1:152970762068:web:50667f7aca3d05edc71ac1',
+  },
+  siteUrl: 'https://your-restaurant-website.example.com', // used for the receipt QR code
+  restaurantName: 'Ember Restaurant',
+};
+
+const BACKEND = { supabaseReady:false, firebaseReady:false, client:null, failedTables:new Set() };
+try{
+  if(CONFIG.supabase.url && CONFIG.supabase.anonKey && window.supabase){
+    BACKEND.client = window.supabase.createClient(CONFIG.supabase.url, CONFIG.supabase.anonKey);
+    BACKEND.supabaseReady = true;
+  }
+}catch(e){ console.warn('Supabase not initialized, using mock DB:', e.message); }
+try{
+  if(CONFIG.firebase.apiKey && window.firebase){
+    firebase.initializeApp(CONFIG.firebase);
+    BACKEND.firebaseReady = true;
+  }
+}catch(e){ console.warn('Firebase not initialized, using mock auth:', e.message); }
+
+/* =====================================================================
+   STORAGE ADAPTER — works inside Claude artifact previews (window.storage)
+   and as a normal standalone file you host yourself (localStorage), with
+   an in-memory fallback if neither is available.
+===================================================================== */
+const MEM_FALLBACK = {};
+const Storage = {
+  isPersistent: true, // flips to false the first time we're forced into memory-only fallback
+  async get(key, fallback=null){
+    try{
+      if(window.storage){ const r = await window.storage.get(key, false); return r ? JSON.parse(r.value) : fallback; }
+    }catch(e){ /* key not found or storage unavailable */ }
+    try{
+      const v = localStorage.getItem(key);
+      return v!==null ? JSON.parse(v) : fallback;
+    }catch(e){ return MEM_FALLBACK[key] ?? fallback; }
+  },
+  async set(key, value){
+    try{ if(window.storage){ await window.storage.set(key, JSON.stringify(value), false); return true; } }catch(e){}
+    try{ localStorage.setItem(key, JSON.stringify(value)); return true; }
+    catch(e){
+      MEM_FALLBACK[key]=value;
+      if(this.isPersistent){
+        this.isPersistent = false;
+        showToast("This browser/tab is blocking saved data — changes will be lost when you reload. Try opening the file directly in a normal browser tab instead of a preview window.", 'error');
+      }
+      return true;
+    }
+  }
+};
+
+/* =====================================================================
+   AUTH ADAPTER — Firebase Authentication-ready.
+   MOCK_USERS simulates what would live in Firebase (email/password + a
+   role custom-claim). Swap the body of signIn() for firebase.auth()
+   .signInWithEmailAndPassword(...) once CONFIG.firebase is filled in.
+===================================================================== */
+const Auth = {
+  async signIn(email, password){
+    if(BACKEND.firebaseReady){
+      try{
+        const cred = await firebase.auth().signInWithEmailAndPassword(email, password);
+        // Refresh staff data right now, at the moment of login — not just
+        // whatever was loaded when the page first opened. This is what
+        // prevents a stale cached staff list (from earlier testing) or a
+        // schema that was only just applied from blocking a valid login.
+        await DB.loadAll();
+        const staffRecord = STAFF.find(s=>s.email && s.email.trim().toLowerCase()===String(email).trim().toLowerCase());
+        if(!staffRecord) throw new Error('Signed in, but no staff record with this email exists yet. Ask an admin to add you under Staff.');
+        return { uid: cred.user.uid, email, role: staffRecord.role.toLowerCase(), name: staffRecord.name };
+      }catch(e){
+        const map = {
+          'auth/wrong-password':'Incorrect email or password.',
+          'auth/invalid-credential':'Incorrect email or password.',
+          'auth/user-not-found':'No account found with this email.',
+          'auth/invalid-email':'Enter a valid email address.',
+          'auth/too-many-requests':'Too many attempts — please wait a moment and try again.',
+        };
+        throw new Error(map[e.code] || e.message);
+      }
+    }
+    // MOCK fallback — only used if Firebase isn't configured yet
+    const user = MOCK_USERS.find(u=>u.email.toLowerCase()===String(email).toLowerCase() && u.password===password);
+    if(!user) throw new Error('Incorrect email or password.');
+    return { uid:'mock-'+user.email, email:user.email, role:user.role, name:user.name };
+  },
+  async signOut(){
+    if(BACKEND.firebaseReady){ try{ await firebase.auth().signOut(); }catch(e){} }
+  }
+};
+
+/* =====================================================================
+   DB ADAPTER — Supabase-ready. Every method below is written so the
+   mock body can be swapped 1:1 for a Supabase call (shown commented)
+   without changing any calling code elsewhere in the app.
+===================================================================== */
+// Maps our local array names to the actual Supabase table names from schema.sql
+const TABLE_MAP = {
+  menu:'menu_items', tables:'tables', staff:'staff', inventory:'inventory',
+  locations:'locations', paymentsDue:'payments_due', completedPayments:'completed_payments',
+  purchaseOrders:'purchase_orders', notifications:'notifications',
+};
+const DB = {
+  async listOrders(){
+    if(BACKEND.supabaseReady){
+      try{
+        const {data, error} = await BACKEND.client.from('orders').select('*');
+        if(!error && data) return data;
+        if(error) console.warn('Supabase listOrders error:', error.message);
+      }catch(e){ console.warn('Supabase listOrders failed, using local data:', e.message); }
+    }
+    return ORDERS_KITCHEN;
+  },
+  async saveOrder(order){
+    await Storage.set('orders', ORDERS_KITCHEN);
+    if(BACKEND.supabaseReady){
+      try{
+        const {error} = await BACKEND.client.from('orders').upsert(order);
+        if(error){
+          BACKEND.failedTables.add('orders');
+          showToast(`⚠ Order NOT saved to the shared database — Supabase rejected it: ${error.message}`, 'error');
+          queueIfOffline('Sync order', order);
+        } else {
+          BACKEND.failedTables.delete('orders');
+        }
+      }catch(e){
+        BACKEND.failedTables.add('orders');
+        showToast(`⚠ Order NOT saved to the shared database — could not reach Supabase: ${e.message}`, 'error');
+        queueIfOffline('Sync order', order);
+      }
+    }
+    channelBroadcast('order-update', order);
+    return order;
+  },
+  async adjustInventory(id, delta){
+    const item = INVENTORY.find(i=>i.id===id);
+    if(!item) return;
+    item.stock = Math.max(0, item.stock + delta);
+    item.status = item.stock<=0 ? 'critical' : item.stock<item.reorder ? (item.stock<item.reorder/2?'critical':'low') : 'ok';
+    await Storage.set('inventory', INVENTORY);
+    if(BACKEND.supabaseReady){
+      try{
+        const {error} = await BACKEND.client.from('inventory').update({stock:item.stock, status:item.status}).eq('id', id);
+        if(error) showToast(`Stock change saved on this device only — Supabase rejected it: ${error.message}`, 'error');
+      }catch(e){ showToast(`Stock change saved on this device only — could not reach Supabase: ${e.message}`, 'error'); }
+    }
+    if(item.status!=='ok'){
+      pushNotification('Low stock', `${item.name} is ${item.status} (${item.stock} ${item.unit} left)`, 'inventory');
+    }
+    channelBroadcast('inventory-update', item);
+    return item;
+  },
+  async saveStaff(staffList){
+    await this.persist('staff', staffList);
+  },
+  async appendAudit(entry){
+    await Storage.set('audit_log', AUDIT_LOG);
+    if(BACKEND.supabaseReady){
+      try{
+        const {error} = await BACKEND.client.from('audit_log').insert(entry);
+        if(error) console.warn('Supabase audit insert error:', error.message);
+      }catch(e){ console.warn('Supabase audit insert failed, kept locally:', e.message); }
+    }
+  },
+  // Generic persistence for whole-array data (menu, tables, staff, inventory,
+  // locations, payments, purchase orders, notifications). Small dataset, so
+  // "clear the table, re-insert everything" keeps deletions in sync too,
+  // without needing per-row diffing logic.
+  async persist(key, value){
+    await Storage.set(key, value);
+    const table = TABLE_MAP[key];
+    if(!BACKEND.supabaseReady || !table) return;
+    try{
+      if(Array.isArray(value) && value.length){
+        const {error} = await BACKEND.client.from(table).upsert(value, {onConflict:'id'});
+        if(error){
+          BACKEND.failedTables.add(key);
+          showToast(`⚠ NOT saved to the shared database — this only exists on this device until fixed: ${error.message}`, 'error');
+        } else {
+          BACKEND.failedTables.delete(key);
+        }
+      }
+    }catch(e){
+      BACKEND.failedTables.add(key);
+      showToast(`⚠ NOT saved to the shared database — could not reach Supabase: ${e.message}`, 'error');
+    }
+  },
+  // Deletes a single row by id — used whenever something is actually
+  // removed (menu item, staff member, location, purchase order, etc.)
+  async remove(key, id){
+    const table = TABLE_MAP[key];
+    if(!BACKEND.supabaseReady || !table) return;
+    try{
+      const {error} = await BACKEND.client.from(table).delete().eq('id', id);
+      if(error) showToast(`Removed on this device only — Supabase rejected the delete from "${table}": ${error.message}`, 'error');
+    }catch(e){ showToast(`Removed on this device only — could not reach Supabase: ${e.message}`, 'error'); }
+  },
+  async persistConfig(table, row){
+    if(!BACKEND.supabaseReady) return;
+    try{
+      const {error} = await BACKEND.client.from(table).upsert({id:1, ...row});
+      if(error) showToast(`Setting saved on this device only — Supabase rejected it: ${error.message}`, 'error');
+    }catch(e){ showToast(`Setting saved on this device only — could not reach Supabase: ${e.message}`, 'error'); }
+  },
+  // Pulls every table down from Supabase at boot, replacing local defaults.
+  // Falls back silently to whatever Storage/local mock already has if the
+  // network call fails (offline-safe).
+  async loadAll(){
+    if(!BACKEND.supabaseReady) return false;
+    const errors = [];
+    let gotAnyRows = false;
+    try{
+      const pulls = await Promise.all(Object.entries(TABLE_MAP).map(async ([key, table])=>{
+        try{
+          const {data, error} = await BACKEND.client.from(table).select('*');
+          if(error){ errors.push(`${table}: ${error.message}`); return [key, null]; }
+          if(data && data.length) gotAnyRows = true;
+          return [key, data || null];
+        }catch(e){ errors.push(`${table}: ${e.message}`); return [key, null]; }
+      }));
+      const [ordersRes, taxRes, bizRes] = await Promise.all([
+        BACKEND.client.from('orders').select('*'),
+        BACKEND.client.from('tax_config').select('*').eq('id',1).maybeSingle(),
+        BACKEND.client.from('business_config').select('*').eq('id',1).maybeSingle(),
+      ]);
+      if(ordersRes.error) errors.push(`orders: ${ordersRes.error.message}`);
+      else if(ordersRes.data && ordersRes.data.length) gotAnyRows = true;
+      if(taxRes.error) errors.push(`tax_config: ${taxRes.error.message}`);
+      if(bizRes.error) errors.push(`business_config: ${bizRes.error.message}`);
+
+      const arrays = { menu:MENU, tables:TABLES, staff:STAFF, inventory:INVENTORY, locations:LOCATIONS,
+        paymentsDue:PAYMENTS_DUE, completedPayments:COMPLETED_PAYMENTS, purchaseOrders:PURCHASE_ORDERS,
+        notifications:NOTIFICATIONS };
+      pulls.forEach(([key, data])=>{
+        if(data && !BACKEND.failedTables.has(key)) replaceArrayContents(arrays[key], data);
+      });
+      if(!ordersRes.error && ordersRes.data && !BACKEND.failedTables.has('orders')) replaceArrayContents(ORDERS_KITCHEN, ordersRes.data);
+      if(taxRes.data) Object.assign(TAX_CONFIG, {label:taxRes.data.label, rate:Number(taxRes.data.rate), taxId:taxRes.data.taxId});
+      if(bizRes.data) Object.assign(CONFIG, {restaurantName:bizRes.data.restaurantName, siteUrl:bizRes.data.siteUrl});
+
+      if(errors.length){
+        console.warn('Supabase load issues:', errors);
+        BACKEND.lastError = errors[0];
+        showToast(`Database connection issue: ${errors[0]}. Using this device's local data instead — ask your developer to check the Supabase schema/policies.`, 'error');
+        return false;
+      }
+      if(!gotAnyRows){
+        // Connected fine, tables just genuinely exist but are empty — extremely
+        // unlikely if the seed data ran, so warn rather than assume success.
+        BACKEND.lastError = 'Connected, but every table came back empty.';
+        showToast("Connected to Supabase, but no data came back from any table — did you run the schema SQL yet?", 'error');
+        return false;
+      }
+      BACKEND.lastError = null;
+      return true;
+    }catch(e){
+      console.warn('Supabase loadAll failed, staying on local/mock data:', e.message);
+      BACKEND.lastError = e.message;
+      showToast(`Could not reach Supabase (${e.message}). Using this device's local data for now.`, 'error');
+      return false;
+    }
+  },
+};
+// Mutates an array in place so `const` bindings elsewhere keep working
+// after we restore saved data on boot.
+function replaceArrayContents(arr, newArr){
+  if(!Array.isArray(newArr)) return;
+  arr.length = 0;
+  newArr.forEach(x=>arr.push(x));
+}
+
+/* =====================================================================
+   MULTI-TERMINAL SYNC (simulated)
+   Real multi-device sync needs Supabase Realtime channels once the DB is
+   live. Until then, BroadcastChannel keeps multiple *tabs/terminals on
+   this same browser* in sync, which is enough to demo the workflow.
+===================================================================== */
+let SYNC_CHANNEL = null;
+try{ SYNC_CHANNEL = new BroadcastChannel('ember-pos-sync'); }catch(e){ /* unsupported browser */ }
+function channelBroadcast(type, payload){
+  try{ SYNC_CHANNEL && SYNC_CHANNEL.postMessage({type, payload, from: STATE.sessionId}); }catch(e){}
+}
+if(SYNC_CHANNEL){
+  SYNC_CHANNEL.onmessage = (e)=>{
+    const {type, payload, from} = e.data || {};
+    if(from===STATE.sessionId) return;
+    if(type==='order-update'){
+      const idx = ORDERS_KITCHEN.findIndex(o=>o.id===payload.id);
+      if(idx>-1) ORDERS_KITCHEN[idx] = payload; else ORDERS_KITCHEN.unshift(payload);
+      if(STATE.view==='kds') goView('kds');
+    }
+    if(type==='inventory-update'){
+      const item = INVENTORY.find(i=>i.id===payload.id);
+      if(item) Object.assign(item, payload);
+      if(STATE.view==='inventory') goView('inventory');
+    }
+    if(type==='notification'){ NOTIFICATIONS.unshift(payload); renderNotifDropdown(); }
+  };
+}
+
+/* =====================================================================
+   MOCK DATA
+   (BACKEND: MENU/TABLES/STAFF/INVENTORY map to Supabase tables of the
+   same name; MOCK_USERS maps to Firebase Auth users)
+===================================================================== */
+const ROLES = [
+  {id:'admin', title:'Owner / Admin', desc:'Full control & reports'},
+  {id:'supervisor', title:'Supervisor', desc:'Inventory & staff'},
+  {id:'waiter', title:'Waiter', desc:'Orders & tables'},
+  {id:'kitchen', title:'Kitchen', desc:'Order display'},
+  {id:'cashier', title:'Cashier', desc:'Payments'},
+];
+
+// BACKEND: these become Firebase Authentication users (email/password + a
+// custom claim for role). Never ship real passwords like this in production.
+const MOCK_USERS = [
+  {email:'alex@emberpos.test', password:'demo1234', role:'admin', name:'Alex Mwangi'},
+  {email:'amina@emberpos.test', password:'demo1234', role:'supervisor', name:'Amina Hassan'},
+  {email:'grace@emberpos.test', password:'demo1234', role:'waiter', name:'Grace Njoroge'},
+  {email:'john@emberpos.test', password:'demo1234', role:'waiter', name:'John Kamau'},
+  {email:'diana@emberpos.test', password:'demo1234', role:'cashier', name:'Diana Wambui'},
+];
+
+const LOCATIONS = [
+  {id:'loc1', name:'Ember Restaurant'},
+];
+
+const TAX_CONFIG = { rate:0.16, label:'VAT', taxId:'P000000000A', compliant:true };
+
+const NAV = {
+  admin: [
+    {id:'dashboard', label:'Dashboard', icon:'home'},
+    {id:'menu', label:'Menu', icon:'menu'},
+    {id:'tables', label:'Tables', icon:'table'},
+    {id:'inventory', label:'Inventory', icon:'box'},
+    {id:'staff', label:'Staff', icon:'users'},
+    {id:'transactions', label:'Transactions', icon:'card'},
+    {id:'reports', label:'Reports', icon:'chart'},
+    {id:'audit', label:'Audit log', icon:'list'},
+    {id:'settings', label:'Settings', icon:'settings'},
+  ],
+  supervisor: [
+    {id:'dashboard', label:'Overview', icon:'home'},
+    {id:'inventory', label:'Inventory', icon:'box'},
+    {id:'purchasing', label:'Purchase orders', icon:'truck'},
+    {id:'staff', label:'Staff performance', icon:'users'},
+    {id:'transactions', label:'Transactions', icon:'card'},
+    {id:'reports', label:'Reports', icon:'chart'},
+    {id:'audit', label:'Audit log', icon:'list'},
+  ],
+  waiter: [
+    {id:'tables', label:'My tables', icon:'table'},
+    {id:'neworder', label:'New order', icon:'plus'},
+    {id:'myorders', label:'My orders', icon:'menu'},
+    {id:'earnings', label:'Earnings', icon:'wallet'},
+  ],
+  kitchen: [
+    {id:'kds', label:'Kitchen display', icon:'fire'},
+  ],
+  cashier: [
+    {id:'payments', label:'Payments due', icon:'card'},
+    {id:'eod', label:'End of day', icon:'cash'},
+  ],
+};
+
+const CATEGORIES = ['Mains','Starters','Drinks','Desserts','Extras'];
+// recipe: [{invId, qty}] — what gets deducted from inventory per unit sold.
+const MENU = [];
+
+const TABLES = [];
+
+const STAFF = [
+  {id:0,name:'Restaurant Owner',role:'Admin',email:'ember@restaraunt.com',orders:0,sales:0,commission:0,tips:0,perf:100,status:'On shift',locationId:'all'},
+  {id:1,name:'Stephen',role:'Supervisor',email:'stephen@emberpos.test',orders:0,sales:0,commission:0,tips:0,perf:0,status:'Off shift',locationId:'loc1'},
+  {id:2,name:'Samuel',role:'Supervisor',email:'samuel@emberpos.test',orders:0,sales:0,commission:0,tips:0,perf:0,status:'Off shift',locationId:'loc1'},
+  {id:3,name:'Maggie',role:'Supervisor',email:'maggie@emberpos.test',orders:0,sales:0,commission:0,tips:0,perf:0,status:'Off shift',locationId:'loc1'},
+  {id:4,name:'Grace',role:'Waiter',email:'grace@emberpos.test',orders:0,sales:0,commission:6,tips:0,perf:0,status:'Off shift',locationId:'loc1'},
+  {id:5,name:'Esther',role:'Waiter',email:'esther@emberpos.test',orders:0,sales:0,commission:6,tips:0,perf:0,status:'Off shift',locationId:'loc1'},
+  {id:6,name:'Gift',role:'Waiter',email:'gift@emberpos.test',orders:0,sales:0,commission:6,tips:0,perf:0,status:'Off shift',locationId:'loc1'},
+  {id:7,name:'Felicity',role:'Cashier',email:'felicity@emberpos.test',orders:0,sales:0,commission:0,tips:0,perf:0,status:'Off shift',locationId:'loc1'},
+  {id:8,name:'Shirleen',role:'Cashier',email:'shirleen@emberpos.test',orders:0,sales:0,commission:0,tips:0,perf:0,status:'Off shift',locationId:'loc1'},
+  {id:9,name:'Valentine',role:'Cashier',email:'valentine@emberpos.test',orders:0,sales:0,commission:0,tips:0,perf:0,status:'Off shift',locationId:'loc1'},
+  {id:10,name:'Brian',role:'Kitchen',email:'brian@emberpos.test',orders:0,sales:0,commission:0,tips:0,perf:0,status:'Off shift',locationId:'loc1'},
+  {id:11,name:'Naomi',role:'Kitchen',email:'naomi@emberpos.test',orders:0,sales:0,commission:0,tips:0,perf:0,status:'Off shift',locationId:'loc1'},
+];
+let nextStaffId = 12;
+
+const INVENTORY = [];
+
+const ORDERS_KITCHEN = [];
+
+const PAYMENTS_DUE = [];
+
+let NOTIFICATIONS = []; // {id, title, body, kind, ts, read}
+let AUDIT_LOG = [];     // {id, actor, action, details, ts}
+
+/* =====================================================================
+   STATE
+===================================================================== */
+let STATE = {
+  role: null,
+  userName: 'Alex Mwangi',
+  userEmail: null,
+  theme: 'dark',
+  view: null,
+  cart: [], // {itemId, qty}
+  selectedTable: null,
+  kdsInterval: null,
+  sidebarCollapsed: false,
+  locationId: 'loc1',
+  sessionId: 'sess-'+Math.random().toString(36).slice(2),
+  online: navigator.onLine,
+  offlineQueue: [],
+  pendingRole: 'admin',
+  discountPct: 0,
+};
+
+const TITLES = {
+  dashboard:['Dashboard','A live snapshot of the restaurant'],
+  menu:['Menu management','Items, categories & pricing'],
+  tables:['Table floor plan','Live occupancy across the floor'],
+  inventory:['Inventory','Stock levels, suppliers & alerts'],
+  staff:['Staff','Performance, commissions & roles'],
+  reports:['Reports','Sales, profit & operational reporting'],
+  purchasing:['Purchase orders','Track supplier orders & deliveries'],
+  neworder:['New order','Build an order for a table'],
+  myorders:['My orders','Orders you are currently serving'],
+  earnings:['My earnings','Commission, tips & performance'],
+  kds:['Kitchen display','Live order tickets'],
+  payments:['Payments due','Tables ready to close out'],
+  eod:['End of day','Cash reconciliation'],
+  audit:['Audit log','Every sensitive action, timestamped'],
+  settings:['Settings','Tax, locations & business details'],
+  transactions:['Transactions','Every completed payment, across the business'],
+};
+
+/* =====================================================================
+   INIT / LOGIN
+===================================================================== */
+function initRoleGrid(){
+  const g = document.getElementById('role-grid');
+  g.innerHTML = ROLES.map(r=>`
+    <button class="role-btn ${r.id==='admin'?'active':''}" data-role="${r.id}" onclick="selectRole('${r.id}')">
+      <span class="rtitle">${r.title}</span>
+      <span class="rdesc">${r.desc}</span>
+    </button>`).join('');
+  STATE.pendingRole = 'admin';
+  updateLoginFieldsVisibility('admin');
+}
+function selectRole(id){
+  STATE.pendingRole = id;
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.toggle('active', b.dataset.role===id));
+  updateLoginFieldsVisibility(id);
+}
+function updateLoginFieldsVisibility(role){
+  document.getElementById('login-error').classList.remove('show');
+}
+async function doLogin(){
+  const role = STATE.pendingRole || 'admin';
+  const errEl = document.getElementById('login-error');
+  errEl.classList.remove('show');
+  try{
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    if(!email || !password){ throw new Error('Enter both email and password.'); }
+    const user = await Auth.signIn(email, password);
+    if(user.role !== role){
+      throw new Error(`That account is registered as ${user.role}, not ${role}. Choose the matching role.`);
+    }
+    STATE.role = user.role;
+    STATE.userName = user.name;
+    STATE.userEmail = user.email;
+    STATE.locationId = resolveUserLocation(user);
+    // Mark this person "On shift" the instant they sign in (not just when
+    // they clock out) — this is what makes admin's Staff page actually
+    // reflect who's currently working, instead of only ever going one way.
+    if(STATE.role!=='admin'){
+      const staffRec = STAFF.find(s=>(s.email && user.email && s.email.toLowerCase()===user.email.toLowerCase()) || s.name===STATE.userName);
+      if(staffRec){ staffRec.status = 'On shift'; DB.saveStaff(STAFF); }
+    }
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='block';
+    document.getElementById('user-name').textContent = STATE.userName;
+    document.getElementById('user-role').textContent = ROLES.find(r=>r.id===STATE.role).title;
+    document.getElementById('avatar-init').textContent = STATE.userName.trim()[0].toUpperCase();
+    document.getElementById('clockout-btn').style.display = (STATE.role==='waiter'||STATE.role==='kitchen') ? 'flex' : 'none';
+    buildLocationSwitch();
+    buildNav();
+    logAction(STATE.userName, 'Signed in', `Role: ${STATE.role}`);
+    const firstView = NAV[STATE.role][0].id;
+    goView(firstView);
+    startLiveSync();
+  }catch(e){
+    errEl.textContent = e.message || 'Sign-in failed. Please check your details.';
+    errEl.classList.add('show');
+  }
+}
+function logout(){
+  logAction(STATE.userName, 'Signed out', `Role: ${STATE.role}`);
+  Auth.signOut();
+  clearInterval(STATE.kdsInterval);
+  stopLiveSync();
+  STATE = {...STATE, role:null, view:null, cart:[], selectedTable:null, kdsInterval:null, discountPct:0};
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('login-error').classList.remove('show');
+}
+function clockOut(){
+  openModal(`
+    <h3>Clock out — ${STATE.userName}</h3>
+    <p style="color:var(--ink-soft);font-size:13.5px;">This notifies admin, your supervisor${STATE.role==='waiter'?' and the kitchen':''} that your shift has ended.</p>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-ember" style="flex:1;" onclick="confirmClockOut()">Confirm clock out</button>
+    </div>`);
+}
+function confirmClockOut(){
+  const staffRec = STAFF.find(s=>s.name===STATE.userName);
+  if(staffRec) staffRec.status = 'Off shift';
+  DB.saveStaff(STAFF);
+  pushNotification('Staff clocked out', `${STATE.userName} (${STATE.role}) has ended their shift.`, 'shift');
+  logAction(STATE.userName, 'Clocked out', `Role: ${STATE.role}`);
+  showToast(`You're clocked out. Admin, supervisor${STATE.role==='waiter'?' & kitchen' : ''} were notified.`, 'success');
+  closeModal();
+  logout(); // clocking out ends the session — the next person must sign in fresh
+}
+
+/* =====================================================================
+   NAV / ROUTER
+===================================================================== */
+function buildNav(){
+  const items = NAV[STATE.role];
+  document.getElementById('nav-container').innerHTML = items.map(i=>`
+    <div class="nav-item" data-view="${i.id}" onclick="goView('${i.id}')">
+      ${icon(i.icon)} <span>${i.label}</span>
+    </div>`).join('');
+}
+function resolveUserLocation(user){
+  if(user.role==='admin') return 'all';
+  const s = STAFF.find(s=>s.email && s.email.toLowerCase()===String(user.email).toLowerCase());
+  return (s && s.locationId && s.locationId!=='all') ? s.locationId : LOCATIONS[0].id;
+}
+// True if a record belongs to the currently selected location (or admin is viewing "All locations")
+function inLocation(record){
+  // If there's only one location configured, location filtering can only
+  // ever cause harm (hiding real data behind a mismatched/blank id) and
+  // never adds value — so skip it entirely in that case.
+  if(LOCATIONS.length<=1) return true;
+  return STATE.locationId==='all' || !record.locationId || record.locationId===STATE.locationId;
+}
+function buildLocationSwitch(){
+  const sel = document.getElementById('location-switch');
+  const wrap = sel.previousElementSibling; // label
+  const showSwitcher = STATE.role==='admin';
+  sel.style.display = showSwitcher ? 'block' : 'none';
+  wrap.style.display = showSwitcher ? 'block' : 'none';
+  const opts = showSwitcher ? [{id:'all',name:'All locations'}, ...LOCATIONS] : LOCATIONS;
+  sel.innerHTML = opts.map(l=>`<option value="${l.id}" ${l.id===STATE.locationId?'selected':''}>${l.name}</option>`).join('');
+}
+function changeLocation(id){
+  STATE.locationId = id;
+  const loc = id==='all' ? {name:'All locations'} : LOCATIONS.find(l=>l.id===id);
+  showToast('Switched to ' + (loc ? loc.name : id), 'success');
+  goView(STATE.view);
+}
+function goView(id){
+  clearInterval(STATE.kdsInterval);
+  STATE.view = id;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.view===id));
+  const [t,s] = TITLES[id] || [id,''];
+  document.getElementById('page-title').textContent = t;
+  document.getElementById('page-sub').innerHTML = s + ' · <span id="today-date"></span>';
+  setDate();
+  const el = document.getElementById('views');
+  el.innerHTML = RENDER[id] ? RENDER[id]() : `<div class="empty-state">${icon('alert')}<div>Coming soon</div></div>`;
+  if(id==='dashboard') drawSalesChart();
+  if(id==='reports') drawReportsCharts();
+  if(id==='kds') STATE.kdsInterval = setInterval(tickKds, 1000);
+  if(window.innerWidth<=820) document.getElementById('sidebar').classList.remove('open');
+}
+function setDate(){
+  const d = new Date();
+  document.querySelectorAll('#today-date').forEach(e=>e.textContent = d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'}));
+}
+
+/* =====================================================================
+   THEME / SIDEBAR
+===================================================================== */
+function toggleTheme(){
+  STATE.theme = STATE.theme==='dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', STATE.theme);
+  Storage.set('theme', STATE.theme);
+}
+function toggleSidebar(){
+  STATE.sidebarCollapsed = !STATE.sidebarCollapsed;
+  document.getElementById('sidebar').classList.toggle('collapsed', STATE.sidebarCollapsed);
+  document.getElementById('shell').classList.toggle('collapsed', STATE.sidebarCollapsed);
+  Storage.set('sidebarCollapsed', STATE.sidebarCollapsed);
+}
+
+/* =====================================================================
+   NOTIFICATIONS
+===================================================================== */
+function pushNotification(title, body, kind){
+  const n = {id:'n'+Date.now()+Math.random().toString(36).slice(2,5), title, body, kind, ts:new Date().toISOString(), read:false};
+  NOTIFICATIONS.unshift(n);
+  DB.persist('notifications', NOTIFICATIONS);
+  channelBroadcast('notification', n);
+  renderNotifDropdown();
+  fireBrowserNotification(title, body);
+  return n;
+}
+/* Real OS/browser-level notification (Notification API). This actually
+   pops up outside the page — on the desktop or Android notification tray —
+   as long as this browser tab/window is open (even in the background) and
+   the person has granted permission. It cannot wake up a fully closed
+   browser or send to a different device; that needs Firebase Cloud
+   Messaging + a service worker + a backend trigger, which is a separate,
+   heavier build (ask if you want that next). */
+function fireBrowserNotification(title, body){
+  try{
+    if(!('Notification' in window)) return;
+    if(Notification.permission==='granted'){
+      new Notification(title, {body, icon:undefined});
+    }
+  }catch(e){ /* unsupported or blocked — silently ignore */ }
+}
+async function requestNotifPermission(){
+  if(!('Notification' in window)){ showToast('This browser does not support notifications.', 'error'); return; }
+  const result = await Notification.requestPermission();
+  updateNotifPermUI();
+  if(result==='granted') showToast('Browser notifications enabled.', 'success');
+  else if(result==='denied') showToast('Notifications blocked — enable them in your browser/site settings to turn this back on.', 'error');
+}
+function updateNotifPermUI(){
+  const el = document.getElementById('notif-perm-status');
+  if(!el || !('Notification' in window)) return;
+  const map = {granted:['Enabled','badge-ok'], denied:['Blocked — check browser settings','badge-danger'], default:['Not enabled yet','badge-neutral']};
+  const [label, cls] = map[Notification.permission];
+  el.innerHTML = `<span class="badge ${cls}">${label}</span>`;
+}
+function renderNotifDropdown(){
+  const unread = NOTIFICATIONS.filter(n=>!n.read).length;
+  const badge = document.getElementById('notif-badge');
+  if(badge){ badge.style.display = unread>0 ? 'flex' : 'none'; badge.textContent = unread>9?'9+':unread; }
+  const list = document.getElementById('notif-list');
+  if(!list) return;
+  list.innerHTML = NOTIFICATIONS.length ? NOTIFICATIONS.slice(0,25).map(n=>`
+    <div class="notif-item" style="${n.read?'opacity:.55;':''}">
+      <div style="font-weight:700;">${n.title}</div>
+      <div>${n.body}</div>
+      <div class="nmeta">${timeAgo(n.ts)}</div>
+    </div>`).join('') : `<div class="notif-empty">You're all caught up.</div>`;
+}
+function toggleNotifDropdown(){
+  document.getElementById('notif-dropdown').classList.toggle('show');
+}
+function markAllNotifsRead(){
+  NOTIFICATIONS.forEach(n=>n.read=true);
+  DB.persist('notifications', NOTIFICATIONS);
+  renderNotifDropdown();
+}
+function timeAgo(iso){
+  const s = Math.max(1, Math.round((Date.now()-new Date(iso).getTime())/1000));
+  if(s<60) return s+'s ago';
+  if(s<3600) return Math.round(s/60)+'m ago';
+  return Math.round(s/3600)+'h ago';
+}
+document.addEventListener('click', (e)=>{
+  const dd = document.getElementById('notif-dropdown');
+  if(dd && dd.classList.contains('show') && !e.target.closest('.notif-wrap')) dd.classList.remove('show');
+});
+
+/* =====================================================================
+   TOASTS
+===================================================================== */
+function showToast(message, kind=''){
+  const stack = document.getElementById('toast-stack');
+  const t = document.createElement('div');
+  t.className = 'toast '+kind;
+  t.textContent = message;
+  stack.appendChild(t);
+  setTimeout(()=>t.remove(), 4200);
+}
+
+/* =====================================================================
+   AUDIT LOG
+===================================================================== */
+function logAction(actor, action, details=''){
+  const entry = {id:'a'+Date.now()+Math.random().toString(36).slice(2,5), actor, action, details, ts:new Date().toISOString()};
+  AUDIT_LOG.unshift(entry);
+  DB.appendAudit(entry);
+  if(STATE.view==='audit') goView('audit');
+}
+
+/* =====================================================================
+   OFFLINE RESILIENCE
+===================================================================== */
+function updateConnBadge(){
+  const pill = document.getElementById('conn-pill');
+  const banner = document.getElementById('offline-banner');
+  if(!pill) return;
+  if(STATE.online){
+    pill.textContent='Live'; pill.classList.remove('badge-danger'); banner.classList.remove('show');
+  } else {
+    pill.textContent='Offline'; banner.classList.add('show');
+  }
+}
+window.addEventListener('online', ()=>{
+  STATE.online = true; updateConnBadge();
+  if(STATE.offlineQueue.length){
+    showToast(`Back online — syncing ${STATE.offlineQueue.length} queued change(s)…`, 'success');
+    // BACKEND: replay STATE.offlineQueue against Supabase here, in order.
+    STATE.offlineQueue = [];
+    Storage.set('offlineQueue', []);
+  } else {
+    showToast('Back online.', 'success');
+  }
+});
+window.addEventListener('offline', ()=>{
+  STATE.online = false; updateConnBadge();
+  showToast("You're offline. Changes will be saved locally and synced later.", 'error');
+});
+function queueIfOffline(actionDescription, payload){
+  if(STATE.online) return false;
+  STATE.offlineQueue.push({actionDescription, payload, ts:new Date().toISOString()});
+  Storage.set('offlineQueue', STATE.offlineQueue);
+  return true;
+}
+
+/* =====================================================================
+   RENDERERS
+===================================================================== */
+const RENDER = {};
+
+RENDER.dashboard = function(){
+  const isAdmin = STATE.role==='admin';
+  const loc = LOCATIONS.find(l=>l.id===STATE.locationId);
+  const locLabel = STATE.locationId==='all' ? 'All locations' : (loc?loc.name:'this location');
+  const lowStock = INVENTORY.filter(inLocation).filter(i=>i.status!=='ok');
+  const staffHere = STAFF.filter(inLocation);
+  const stats = computeTodayStats();
+  const week = computeWeekSales();
+  const topItems = computeTopItems(5);
+  return `
+  <div class="grid cols-4" style="margin-bottom:16px;">
+    <div class="card kpi"><div class="kpi-label">Today's sales ${icon('cash')}</div><div class="kpi-val">KSh ${stats.totalSales.toLocaleString()}</div></div>
+    <div class="card kpi"><div class="kpi-label">Orders today ${icon('menu')}</div><div class="kpi-val">${stats.ordersToday}</div></div>
+    <div class="card kpi"><div class="kpi-label">Avg. order value ${icon('tag')}</div><div class="kpi-val">${stats.avgOrder ? 'KSh '+stats.avgOrder.toLocaleString() : '—'}</div></div>
+    <div class="card kpi"><div class="kpi-label">Active tables ${icon('table')}</div><div class="kpi-val">${stats.activeTables} / ${stats.totalTables}</div></div>
+  </div>
+  <p class="muted" style="margin:-8px 0 14px;font-size:12px;">Showing data for <strong>${locLabel}</strong>${STATE.role==='admin'?' · switch locations from the sidebar':''}</p>
+  <div class="grid cols-2" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-head"><h3>Sales — last 7 days</h3><span class="muted">Weekly total KSh ${week.weekTotal.toLocaleString()}</span></div>
+      <canvas id="salesChart" height="110"></canvas>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Best sellers</h3></div>
+      <table><tbody>
+      ${topItems.length ? topItems.map(t=>`<tr><td>${t.name}</td><td style="text-align:right;color:var(--ink-soft)">${t.sold} sold</td></tr>`).join('') : `<tr><td class="empty-state">No sales yet</td></tr>`}
+      </tbody></table>
+    </div>
+  </div>
+  <div class="grid cols-2">
+    <div class="card">
+      <div class="card-head"><h3>Low stock items</h3><span class="muted">${lowStock.length} need attention</span></div>
+      <table><thead><tr><th>Item</th><th>Stock</th><th>Status</th></tr></thead><tbody>
+      ${lowStock.map(i=>`
+        <tr><td>${i.name}</td><td>${i.stock} ${i.unit}</td><td>${badgeStock(i.status)}</td></tr>`).join('') || `<tr><td colspan="3" class="empty-state">All stocked up here</td></tr>`}
+      </tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Active staff on shift</h3></div>
+      ${staffHere.slice(0,4).map(s=>`
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+          <div class="avatar" style="width:28px;height:28px;font-size:11px;">${s.name[0]}</div>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:700;">${s.name}</div>
+            <div style="font-size:11px;color:var(--ink-soft);">${s.role}</div>
+          </div>
+          <span class="badge ${s.status==='On shift'?'badge-ok':'badge-neutral'}">${s.status}</span>
+        </div>`).join('') || `<p class="muted" style="padding:8px 0;">No staff assigned to this location yet.</p>`}
+    </div>
+  </div>`;
+};
+
+/* =====================================================================
+   REAL STATS — replaces the old hardcoded demo numbers everywhere.
+   Everything below computes from actual orders/payments, so a brand-new
+   restaurant with zero sales correctly shows zero, not fake figures.
+===================================================================== */
+function isSameDay(iso, ref){
+  if(!iso) return false;
+  const d = new Date(iso), r = ref || new Date();
+  return d.getFullYear()===r.getFullYear() && d.getMonth()===r.getMonth() && d.getDate()===r.getDate();
+}
+function todaysCompletedPayments(){
+  return COMPLETED_PAYMENTS.filter(inLocation).filter(cp=>!cp.refunded && isSameDay(cp.ts));
+}
+function computeTodayStats(){
+  const paid = todaysCompletedPayments();
+  const totalSales = paid.reduce((s,p)=>s+p.total, 0);
+  const ordersToday = ORDERS_KITCHEN.filter(inLocation).filter(o=>!o.voided && isSameDay(o.createdAt)).length;
+  const avgOrder = paid.length ? Math.round(totalSales/paid.length) : 0;
+  const tablesHere = TABLES.filter(inLocation);
+  const activeTables = tablesHere.filter(t=>t.status==='occupied').length;
+  return { totalSales, ordersToday, avgOrder, activeTables, totalTables: tablesHere.length };
+}
+function computeWeekSales(){
+  const labels = [], data = [];
+  for(let i=6;i>=0;i--){
+    const d = new Date(); d.setDate(d.getDate()-i);
+    labels.push(d.toLocaleDateString('en-US',{weekday:'short'}));
+    const sum = COMPLETED_PAYMENTS.filter(inLocation).filter(cp=>!cp.refunded && isSameDay(cp.ts, d)).reduce((s,p)=>s+p.total,0);
+    data.push(sum);
+  }
+  return { labels, data, weekTotal: data.reduce((a,b)=>a+b,0) };
+}
+// Real performance metric: % of a waiter's completed orders that weren't
+// refunded. Replaces the old hardcoded number that was always 0.
+// Returns null (shown as "—") until they've actually taken any orders.
+function computeStaffPerf(s){
+  const completed = s.orders||0;
+  const refunds = s.refundsCount||0;
+  const attempted = completed + refunds;
+  if(attempted<=0) return null;
+  return Math.round(100*completed/attempted);
+}
+function computeTopItems(limit=5){
+  const counts = {};
+  ORDERS_KITCHEN.filter(inLocation).filter(o=>!o.voided).forEach(o=>{
+    o.items.forEach(i=>{
+      const m = MENU.find(x=>x.id===i.itemId);
+      const price = m ? m.price : 0;
+      if(!counts[i.n]) counts[i.n] = {name:i.n, sold:0, revenue:0};
+      counts[i.n].sold += i.q;
+      counts[i.n].revenue += i.q*price;
+    });
+  });
+  return Object.values(counts).sort((a,b)=>b.sold-a.sold).slice(0,limit);
+}
+function badgeStock(status){
+  if(status==='critical') return '<span class="badge badge-danger">Critical</span>';
+  if(status==='low') return '<span class="badge badge-warn">Low</span>';
+  return '<span class="badge badge-ok">OK</span>';
+}
+
+function drawSalesChart(){
+  const ctx = document.getElementById('salesChart');
+  if(!ctx || !window.Chart) return;
+  const style = getComputedStyle(document.documentElement);
+  const week = computeWeekSales();
+  new Chart(ctx, {
+    type:'line',
+    data:{labels:week.labels, datasets:[{
+      data:week.data, borderColor: style.getPropertyValue('--ember').trim(), backgroundColor: style.getPropertyValue('--ember-soft').trim(),
+      fill:true, tension:.35, pointRadius:3, borderWidth:2.5
+    }]},
+    options:{plugins:{legend:{display:false}}, scales:{y:{grid:{color:style.getPropertyValue('--border').trim()},ticks:{color:style.getPropertyValue('--ink-soft').trim()}}, x:{grid:{display:false},ticks:{color:style.getPropertyValue('--ink-soft').trim()}}}}
+  });
+}
+
+/* ---- MENU ---- */
+RENDER.menu = function(){
+  return `
+  <div class="topbar" style="margin-bottom:18px;">
+    <div class="filters" id="cat-filters">
+      ${['All',...CATEGORIES].map((c,i)=>`<span class="chip ${i===0?'active':''}" onclick="filterMenu('${c}',this)">${c}</span>`).join('')}
+    </div>
+    <div style="display:flex;gap:10px;">
+      <div class="searchbar">${icon('search')}<input placeholder="Search menu items…" oninput="searchMenu(this.value)"></div>
+      <button class="btn btn-ember" onclick="openMenuItemForm()">${icon('plus')} Add item</button>
+    </div>
+  </div>
+  <div class="grid cols-4" id="menu-grid" style="grid-template-columns:repeat(4,1fr);"></div>`;
+};
+function menuGridHtml(items){
+  return items.map(m=>`
+    <div class="menu-item-card" onclick="openMenuItemForm(${m.id})">
+      <div class="mi-photo" style="background:var(--ember-soft);">${m.emoji}</div>
+      <div class="mi-body">
+        <div class="miname">${m.name}</div>
+        <div class="micat">${m.cat} · ${m.prep} min ${!m.avail?' · <span style="color:var(--danger)">86\'d</span>':''}</div>
+        <div class="miprice">KSh ${m.price}</div>
+      </div>
+    </div>`).join('') || `<div class="empty-state">${icon('search')}<div>No items match</div></div>`;
+}
+function filterMenu(cat, el){
+  document.querySelectorAll('#cat-filters .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  const items = cat==='All' ? MENU : MENU.filter(m=>m.cat===cat);
+  document.getElementById('menu-grid').innerHTML = menuGridHtml(items);
+}
+function searchMenu(q){
+  const items = MENU.filter(m=>m.name.toLowerCase().includes(q.toLowerCase()));
+  document.getElementById('menu-grid').innerHTML = menuGridHtml(items);
+}
+function openMenuItemForm(id){
+  const m = id ? MENU.find(x=>x.id===id) : null;
+  openModal(`
+    <h3>${m?'Edit item':'Add menu item'}</h3>
+    <div class="form-group"><label>Name</label><input id="mi-name" value="${m?m.name:''}"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Category</label><select id="mi-cat">${CATEGORIES.map(c=>`<option ${m&&m.cat===c?'selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Price (KSh)</label><input id="mi-price" type="number" min="0" value="${m?m.price:''}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Prep time (min)</label><input id="mi-prep" type="number" min="0" value="${m?m.prep:10}"></div>
+      <div class="form-group"><label>Emoji</label><input id="mi-emoji" value="${m?m.emoji:'🍽️'}"></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:14px;">
+      <input type="checkbox" id="mi-avail" ${!m||m.avail?'checked':''} style="width:auto;"> Available (uncheck to 86 this item)
+    </label>
+    <p class="field-error" id="mi-error"></p>
+    <div style="display:flex;gap:8px;">
+      ${m?`<button class="btn" style="color:var(--danger);border-color:var(--danger);" onclick="deleteMenuItem(${m.id})">Delete</button>`:''}
+      <span style="flex:1;"></span>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-ember" onclick="saveMenuItem(${m?m.id:'null'})">Save</button>
+    </div>`);
+}
+function saveMenuItem(id){
+  const name = document.getElementById('mi-name').value.trim();
+  const price = parseFloat(document.getElementById('mi-price').value);
+  const err = document.getElementById('mi-error');
+  if(!name || isNaN(price) || price<=0){
+    err.textContent = 'Enter a valid name and a price greater than 0.'; err.classList.add('show'); return;
+  }
+  const cat = document.getElementById('mi-cat').value;
+  const prep = parseInt(document.getElementById('mi-prep').value)||5;
+  const emoji = document.getElementById('mi-emoji').value || '🍽️';
+  const avail = document.getElementById('mi-avail').checked;
+  if(id){
+    const m = MENU.find(x=>x.id===id);
+    Object.assign(m, {name, price, cat, prep, emoji, avail});
+    logAction(STATE.userName, 'Edited menu item', name);
+  } else {
+    const newId = Math.max(0,...MENU.map(m=>m.id))+1;
+    MENU.push({id:newId, name, price, cat, prep, emoji, avail, stock:'ok', recipe:[]});
+    logAction(STATE.userName, 'Added menu item', name);
+  }
+  closeModal();
+  showToast('Menu item saved.', 'success');
+  DB.persist('menu', MENU);
+  goView('menu');
+}
+function deleteMenuItem(id){
+  const m = MENU.find(x=>x.id===id);
+  const idx = MENU.findIndex(x=>x.id===id);
+  if(idx>-1) MENU.splice(idx,1);
+  logAction(STATE.userName, 'Deleted menu item', m?m.name:String(id));
+  closeModal();
+  showToast('Menu item deleted.', 'success');
+  Storage.set('menu', MENU);
+  DB.remove('menu', id);
+  goView('menu');
+}
+
+/* ---- TABLES ---- */
+RENDER.tables = function(){
+  const isAdmin = STATE.role==='admin';
+  return `
+  <div class="topbar" style="margin-bottom:14px;">
+    <div class="legend">
+      <span><span class="dot" style="background:var(--basil)"></span> Available</span>
+      <span><span class="dot" style="background:var(--ember)"></span> Occupied</span>
+      <span><span class="dot" style="background:var(--saffron)"></span> Reserved</span>
+      <span><span class="dot" style="background:var(--ink-soft)"></span> Cleaning</span>
+    </div>
+    ${isAdmin?`<button class="btn btn-ember btn-sm" onclick="openTableForm()">${icon('plus')} Add table</button>`:''}
+  </div>
+  <div class="floor">
+    ${TABLES.filter(inLocation).map(t=>`
+      <div class="floor-table ${t.status}" onclick="showTableModal('${t.id}')">
+        <div class="tnum">${t.id}</div>
+        <div class="tseats">${t.seats} seats</div>
+        ${t.status==='occupied'?`<div class="tseats">${t.since}m · ${t.waiter}</div>`:''}
+        ${t.status==='reserved'?`<div class="tseats">${t.time}</div>`:''}
+      </div>`).join('') || `<div class="empty-state" style="grid-column:1/-1;">${icon('table')}<div>No tables at this location yet${isAdmin?' — add one above':''}</div></div>`}
+  </div>`;
+};
+function showTableModal(id){
+  const t = TABLES.find(x=>x.id===id);
+  const waiters = STAFF.filter(s=>s.role==='Waiter' && s.locationId===t.locationId);
+  openModal(`
+    <h3>Table ${t.id}</h3>
+    <p style="color:var(--ink-soft);font-size:13.5px;">${t.seats} seats · Status: <strong style="text-transform:capitalize">${t.status}</strong>${t.waiter?` · Served by ${t.waiter}`:''}</p>
+    <div class="form-group" style="margin-top:14px;">
+      <label>Assign waiter</label>
+      <select id="tbl-waiter">${waiters.map(w=>`<option ${t.waiter===w.name?'selected':''}>${w.name}</option>`).join('') || '<option value="">No waiters at this location</option>'}</select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
+      <button class="btn" onclick="assignWaiter('${t.id}')">Save waiter</button>
+      <button class="btn" onclick="markTableCleaning('${t.id}')">Mark cleaning</button>
+      <button class="btn" onclick="markTableAvailable('${t.id}')">Mark available</button>
+      ${STATE.role==='waiter' ? `<button class="btn btn-ember" onclick="closeModal(); STATE.selectedTable='${t.id}'; goView('neworder');">Open order</button>` : ''}
+      ${STATE.role==='admin' ? `<button class="btn" style="color:var(--danger);border-color:var(--danger);" onclick="removeTable('${t.id}')">Remove table</button>` : ''}
+    </div>`);
+}
+function openTableForm(){
+  openModal(`
+    <h3>Add table</h3>
+    <div class="form-row">
+      <div class="form-group"><label>Table name/number</label><input id="tf-id" placeholder="e.g. T1 or Patio 2"></div>
+      <div class="form-group"><label>Seats</label><input id="tf-seats" type="number" min="1" value="4"></div>
+    </div>
+    <p class="field-error" id="tf-error"></p>
+    <div style="display:flex;gap:8px;"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-ember" style="flex:1;" onclick="saveTable()">Add table</button></div>`);
+}
+function saveTable(){
+  const id = document.getElementById('tf-id').value.trim();
+  const seats = parseInt(document.getElementById('tf-seats').value);
+  const err = document.getElementById('tf-error');
+  if(!id || isNaN(seats) || seats<1){ err.textContent = 'Enter a table name and at least 1 seat.'; err.classList.add('show'); return; }
+  if(TABLES.find(t=>t.id===id)){ err.textContent = 'A table with that name already exists.'; err.classList.add('show'); return; }
+  const locationId = STATE.locationId==='all' ? LOCATIONS[0].id : STATE.locationId;
+  TABLES.push({id, seats, status:'available', locationId});
+  DB.persist('tables', TABLES);
+  logAction(STATE.userName, 'Added table', `${id} (${seats} seats)`);
+  closeModal(); showToast('Table added.', 'success'); goView('tables');
+}
+function removeTable(id){
+  const idx = TABLES.findIndex(t=>t.id===id);
+  if(idx>-1) TABLES.splice(idx,1);
+  Storage.set('tables', TABLES);
+  DB.remove('tables', id);
+  logAction(STATE.userName, 'Removed table', id);
+  closeModal(); showToast('Table removed.', 'success'); goView('tables');
+}
+function assignWaiter(id){
+  const t = TABLES.find(x=>x.id===id);
+  const wname = document.getElementById('tbl-waiter').value;
+  t.waiter = wname; t.status='occupied'; t.since = t.since||0;
+  logAction(STATE.userName, 'Assigned waiter', `${wname} → ${id}`);
+  closeModal(); showToast('Waiter assigned.', 'success'); DB.persist('tables', TABLES); goView('tables');
+}
+function markTableCleaning(id){
+  const t = TABLES.find(x=>x.id===id);
+  t.status='cleaning'; delete t.waiter;
+  logAction(STATE.userName, 'Marked table cleaning', id);
+  closeModal(); showToast(`${id} marked as cleaning.`); DB.persist('tables', TABLES); goView('tables');
+}
+function markTableAvailable(id){
+  const t = TABLES.find(x=>x.id===id);
+  t.status='available'; delete t.waiter; delete t.since;
+  logAction(STATE.userName, 'Marked table available', id);
+  closeModal(); showToast(`${id} is now available.`); DB.persist('tables', TABLES); goView('tables');
+}
+
+/* ---- INVENTORY ---- */
+RENDER.inventory = function(){
+  return `
+  <div class="topbar" style="margin-bottom:18px;">
+    <div class="filters">
+      <span class="chip active" onclick="filterInventory('all',this)">All items</span>
+      <span class="chip" onclick="filterInventory('low',this)">Low stock (${INVENTORY.filter(inLocation).filter(i=>i.status==='low').length})</span>
+      <span class="chip" onclick="filterInventory('critical',this)">Critical (${INVENTORY.filter(inLocation).filter(i=>i.status==='critical').length})</span>
+    </div>
+    <button class="btn" onclick="openBarcodeScanner()">${icon('search')} Scan barcode</button>
+    <button class="btn" onclick="openNewInventoryItemForm()">${icon('plus')} New ingredient</button>
+    <button class="btn btn-ember" onclick="openReceiveStockForm()">${icon('plus')} Receive stock</button>
+  </div>
+  <div class="card"><table id="inv-table">
+    <thead><tr><th>Ingredient</th><th>Stock</th><th>Reorder level</th><th>Supplier</th><th>Status</th><th></th></tr></thead>
+    <tbody>${inventoryRowsHtml(INVENTORY.filter(inLocation))}</tbody>
+  </table></div>`;
+};
+function openNewInventoryItemForm(prefillBarcode){
+  openModal(`
+    <h3>New ingredient</h3>
+    <div class="form-group"><label>Name</label><input id="ni-name" placeholder="e.g. Tomatoes"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Unit</label><input id="ni-unit" placeholder="kg, L, pcs, crate..."></div>
+      <div class="form-group"><label>Starting stock</label><input id="ni-stock" type="number" min="0" step="0.01" value="0"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Reorder level</label><input id="ni-reorder" type="number" min="0" step="0.01" value="0"></div>
+      <div class="form-group"><label>Supplier</label><input id="ni-supplier" placeholder="e.g. Farm Fresh Ltd"></div>
+    </div>
+    <div class="form-group"><label>Barcode (optional — for scanning later)</label><input id="ni-barcode" value="${prefillBarcode||''}" placeholder="Scan or type a barcode"></div>
+    <p class="field-error" id="ni-error"></p>
+    <div style="display:flex;gap:8px;"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-ember" style="flex:1;" onclick="saveNewInventoryItem()">Add ingredient</button></div>`);
+}
+function saveNewInventoryItem(){
+  const name = document.getElementById('ni-name').value.trim();
+  const unit = document.getElementById('ni-unit').value.trim();
+  const stock = parseFloat(document.getElementById('ni-stock').value)||0;
+  const reorder = parseFloat(document.getElementById('ni-reorder').value)||0;
+  const supplier = document.getElementById('ni-supplier').value.trim();
+  const barcode = document.getElementById('ni-barcode').value.trim();
+  const err = document.getElementById('ni-error');
+  if(!name || !unit){ err.textContent = 'Enter a name and a unit (kg, L, pcs...).'; err.classList.add('show'); return; }
+  const newId = Math.max(0,...INVENTORY.map(i=>i.id))+1;
+  const status = stock<=0 ? 'critical' : (reorder && stock<reorder) ? (stock<reorder/2?'critical':'low') : 'ok';
+  const locationId = STATE.locationId==='all' ? LOCATIONS[0].id : STATE.locationId;
+  INVENTORY.push({id:newId, name, unit, stock, reorder, supplier, barcode, status, locationId});
+  DB.persist('inventory', INVENTORY);
+  logAction(STATE.userName, 'Added ingredient', `${name} (${stock}${unit})`);
+  closeModal(); showToast('Ingredient added.', 'success'); goView('inventory');
+}
+/* =====================================================================
+   BARCODE SCANNER
+   Uses the device camera + the browser's native BarcodeDetector API.
+   Currently supported in Chrome/Edge (desktop and Android) — not yet in
+   Safari or Firefox, which get a clear message instead of a silent
+   failure. No external library needed since this is built into the
+   browser where it works.
+===================================================================== */
+let SCANNER_STREAM = null;
+let SCANNER_RAF = null;
+async function openBarcodeScanner(){
+  if(!('BarcodeDetector' in window)){
+    openModal(`
+      <h3>Barcode scanning not supported</h3>
+      <p style="color:var(--ink-soft);font-size:13.5px;">This browser doesn't support camera barcode scanning yet. This works in Chrome or Edge (including on Android). You can still add the barcode number manually when creating an ingredient.</p>
+      <button class="btn" onclick="closeModal()">Close</button>`);
+    return;
+  }
+  openModal(`
+    <h3>Scan a barcode</h3>
+    <p style="color:var(--ink-soft);font-size:13px;margin-bottom:10px;">Point the camera at a product barcode.</p>
+    <video id="scanner-video" autoplay playsinline muted style="width:100%;border-radius:10px;background:#000;"></video>
+    <p class="field-error" id="scanner-error"></p>
+    <button class="btn" style="width:100%;margin-top:10px;" onclick="closeScanner()">Cancel</button>`);
+  try{
+    SCANNER_STREAM = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+    const video = document.getElementById('scanner-video');
+    video.srcObject = SCANNER_STREAM;
+    const detector = new BarcodeDetector();
+    const scanFrame = async ()=>{
+      if(!SCANNER_STREAM) return; // scanner was closed
+      try{
+        const codes = await detector.detect(video);
+        if(codes.length){ handleBarcodeResult(codes[0].rawValue); return; }
+      }catch(e){ /* detection hiccup on a single frame — keep trying */ }
+      SCANNER_RAF = requestAnimationFrame(scanFrame);
+    };
+    scanFrame();
+  }catch(e){
+    const err = document.getElementById('scanner-error');
+    if(err){ err.textContent = `Could not access the camera: ${e.message}. Check camera permissions for this site.`; err.classList.add('show'); }
+  }
+}
+function closeScanner(){
+  if(SCANNER_RAF) cancelAnimationFrame(SCANNER_RAF);
+  if(SCANNER_STREAM){ SCANNER_STREAM.getTracks().forEach(t=>t.stop()); SCANNER_STREAM=null; }
+  closeModal();
+}
+function handleBarcodeResult(code){
+  closeScanner();
+  const item = INVENTORY.find(i=>i.barcode && i.barcode===code);
+  if(item){
+    showToast(`Matched: ${item.name}`, 'success');
+    openAdjustStockForm(item.id);
+  } else {
+    showToast(`No ingredient matches barcode ${code} — add it as a new one.`, '');
+    openNewInventoryItemForm(code);
+  }
+}
+document.getElementById('modal-overlay').addEventListener('click', e=>{ if(e.target.id==='modal-overlay') closeScanner(); });
+function inventoryRowsHtml(items){
+  return items.map(i=>`
+    <tr>
+      <td style="font-weight:700;">${i.name}</td>
+      <td>${i.stock} ${i.unit}</td>
+      <td style="color:var(--ink-soft)">${i.reorder} ${i.unit}</td>
+      <td>${i.supplier}</td>
+      <td>${badgeStock(i.status)}</td>
+      <td><button class="btn btn-sm" onclick="openAdjustStockForm(${i.id})">Adjust</button></td>
+    </tr>`).join('') || `<tr><td colspan="6" class="empty-state">No items at this location</td></tr>`;
+}
+function filterInventory(kind, el){
+  document.querySelectorAll('.filters .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  const base = INVENTORY.filter(inLocation);
+  const items = kind==='all' ? base : base.filter(i=>i.status===kind);
+  document.querySelector('#inv-table tbody').innerHTML = inventoryRowsHtml(items);
+}
+function openReceiveStockForm(){
+  const items = INVENTORY.filter(inLocation);
+  openModal(`
+    <h3>Receive stock</h3>
+    <div class="form-group"><label>Ingredient</label><select id="rs-item">${items.map(i=>`<option value="${i.id}">${i.name}</option>`).join('') || '<option value="">No items at this location</option>'}</select></div>
+    <div class="form-group"><label>Quantity received</label><input id="rs-qty" type="number" min="0.01" step="0.01"></div>
+    <p class="field-error" id="rs-error"></p>
+    <div style="display:flex;gap:8px;"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-ember" style="flex:1;" onclick="confirmReceiveStock()">Receive</button></div>`);
+}
+async function confirmReceiveStock(){
+  const id = parseInt(document.getElementById('rs-item').value);
+  const qty = parseFloat(document.getElementById('rs-qty').value);
+  const err = document.getElementById('rs-error');
+  if(isNaN(id) || !INVENTORY.find(i=>i.id===id)){ err.textContent='Add an ingredient first (New ingredient), then receive stock for it.'; err.classList.add('show'); return; }
+  if(isNaN(qty) || qty<=0){ err.textContent='Enter a quantity greater than 0.'; err.classList.add('show'); return; }
+  await DB.adjustInventory(id, qty);
+  const item = INVENTORY.find(i=>i.id===id);
+  logAction(STATE.userName, 'Received stock', `${item.name} +${qty}${item.unit}`);
+  closeModal(); showToast('Stock received.', 'success'); goView('inventory');
+}
+function openAdjustStockForm(id){
+  const i = INVENTORY.find(x=>x.id===id);
+  openModal(`
+    <h3>Adjust stock — ${i.name}</h3>
+    <div class="form-group"><label>New stock level (${i.unit})</label><input id="adj-qty" type="number" min="0" step="0.01" value="${i.stock}"></div>
+    <p class="field-error" id="adj-error"></p>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" style="color:var(--danger);border-color:var(--danger);" onclick="deleteInventoryItem(${id})">Delete</button>
+      <span style="flex:1;"></span>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-ember" onclick="confirmAdjustStock(${id})">Save</button>
+    </div>`);
+}
+function deleteInventoryItem(id){
+  const i = INVENTORY.find(x=>x.id===id);
+  const idx = INVENTORY.findIndex(x=>x.id===id);
+  if(idx>-1) INVENTORY.splice(idx,1);
+  Storage.set('inventory', INVENTORY);
+  DB.remove('inventory', id);
+  logAction(STATE.userName, 'Deleted ingredient', i?i.name:String(id));
+  closeModal(); showToast('Ingredient deleted.', 'success'); goView('inventory');
+}
+async function confirmAdjustStock(id){
+  const newVal = parseFloat(document.getElementById('adj-qty').value);
+  const err = document.getElementById('adj-error');
+  if(isNaN(newVal) || newVal<0){ err.textContent='Stock cannot be negative.'; err.classList.add('show'); return; }
+  const i = INVENTORY.find(x=>x.id===id);
+  const delta = newVal - i.stock;
+  await DB.adjustInventory(id, delta);
+  logAction(STATE.userName, 'Adjusted stock', `${i.name} → ${newVal}${i.unit}`);
+  closeModal(); showToast('Stock updated.', 'success'); goView('inventory');
+}
+
+/* ---- STAFF ---- */
+RENDER.staff = function(){
+  const isAdmin = STATE.role==='admin';
+  const staffHere = STAFF.filter(inLocation);
+  return `
+  <div class="card">
+    <div class="card-head">
+      <h3>Staff performance & commissions</h3>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <span class="muted">This month</span>
+        ${isAdmin?`<button class="btn btn-ember btn-sm" onclick="openStaffForm()">${icon('plus')} Add staff</button>`:''}
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>Name</th><th>Role</th>${STATE.locationId==='all'?'<th>Location</th>':''}<th>Status</th><th>Orders</th><th>Sales</th><th>Commission</th><th>Tips</th><th>Performance</th>${isAdmin?'<th></th>':''}</tr></thead>
+      <tbody>
+      ${staffHere.map(s=>{ const perf = computeStaffPerf(s); return `
+        <tr>
+          <td style="font-weight:700;">${s.name}</td>
+          <td>${s.role}</td>
+          ${STATE.locationId==='all'?`<td>${s.locationId==='all'?'—':(LOCATIONS.find(l=>l.id===s.locationId)||{name:'—'}).name}</td>`:''}
+          <td><span class="badge ${s.status==='On shift'?'badge-ok':'badge-neutral'}">${s.status}</span></td>
+          <td>${s.orders||'—'}</td>
+          <td>${s.sales? 'KSh '+s.sales.toLocaleString():'—'}</td>
+          <td>${s.commission? 'KSh '+Math.round(s.sales*s.commission/100).toLocaleString()+' ('+s.commission+'%)':'—'}</td>
+          <td>${s.tips? 'KSh '+s.tips.toLocaleString():'—'}</td>
+          <td style="min-width:120px;">
+            ${perf===null ? `<span style="color:var(--ink-soft);font-size:11px;">No orders yet</span>` : `
+            <div class="progress-bar"><div style="width:${perf}%"></div></div>
+            <span style="font-size:11px;color:var(--ink-soft)">${perf}% completed without refund</span>`}
+          </td>
+          ${isAdmin?`<td><button class="btn btn-sm" onclick="openStaffForm(${s.id})">Edit</button></td>`:''}
+        </tr>`;}).join('') || `<tr><td colspan="9" class="empty-state">No staff at this location yet</td></tr>`}
+      </tbody>
+    </table>
+  </div>`;
+};
+function openStaffForm(id){
+  const s = id ? STAFF.find(x=>x.id===id) : null;
+  const roleOptions = ['Waiter','Kitchen','Cashier','Supervisor','Admin'];
+  openModal(`
+    <h3>${s?'Edit staff member':'Add staff member'}</h3>
+    <div class="form-group"><label>Full name</label><input id="sf-name" value="${s?s.name:''}"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Email (Firebase login)</label><input id="sf-email" type="email" value="${s?s.email:''}" placeholder="name@emberpos.test"></div>
+      <div class="form-group"><label>Role</label><select id="sf-role">${roleOptions.map(r=>`<option ${s&&s.role===r?'selected':''}>${r}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Commission % (waiters only)</label><input id="sf-comm" type="number" min="0" max="100" value="${s?s.commission:0}"></div>
+      <div class="form-group"><label>Location</label><select id="sf-loc">${LOCATIONS.map(l=>`<option value="${l.id}" ${(s?s.locationId:STATE.locationId!=='all'?STATE.locationId:LOCATIONS[0].id)===l.id?'selected':''}>${l.name}</option>`).join('')}</select></div>
+    </div>
+    <p class="field-error" id="sf-error"></p>
+    <div style="display:flex;gap:8px;">
+      ${s?`<button class="btn" style="color:var(--danger);border-color:var(--danger);" onclick="removeStaff(${s.id})">Remove</button>`:''}
+      <span style="flex:1;"></span>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-ember" onclick="saveStaff(${s?s.id:'null'})">Save</button>
+    </div>`);
+}
+function saveStaff(id){
+  const name = document.getElementById('sf-name').value.trim();
+  const email = document.getElementById('sf-email').value.trim();
+  const role = document.getElementById('sf-role').value;
+  const commission = parseFloat(document.getElementById('sf-comm').value)||0;
+  const locationId = document.getElementById('sf-loc').value;
+  const err = document.getElementById('sf-error');
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if(!name || !emailOk){
+    err.textContent = 'Enter a name and a valid email address.';
+    err.classList.add('show'); return;
+  }
+  if(id){
+    const st = STAFF.find(x=>x.id===id);
+    Object.assign(st, {name, email, role, commission, locationId});
+    logAction(STATE.userName, 'Edited staff', `${name} (${role}) · ${locationId}`);
+  } else {
+    const newId = nextStaffId++;
+    STAFF.push({id:newId, name, email, role, commission, locationId, orders:0, sales:0, tips:0, perf:0, status:'Off shift'});
+    if(email) MOCK_USERS.push({email, password:'demo1234', role:role.toLowerCase(), name});
+    logAction(STATE.userName, 'Added staff', `${name} (${role}) · ${locationId}`);
+  }
+  DB.saveStaff(STAFF);
+  closeModal(); showToast('Staff record saved.', 'success'); goView('staff');
+}
+function removeStaff(id){
+  const s = STAFF.find(x=>x.id===id);
+  const idx = STAFF.findIndex(x=>x.id===id);
+  if(idx>-1) STAFF.splice(idx,1);
+  Storage.set('staff', STAFF);
+  DB.remove('staff', id);
+  logAction(STATE.userName, 'Removed staff', s?s.name:String(id));
+  closeModal(); showToast('Staff member removed.', 'success'); goView('staff');
+}
+
+/* ---- REPORTS ---- */
+RENDER.reports = function(){
+  const topItems = computeTopItems(10);
+  return `
+  <div class="filters" style="margin-bottom:18px;">
+    <span class="chip active">Daily</span><span class="chip">Weekly</span><span class="chip">Monthly</span><span class="chip">Quarterly</span><span class="chip">Yearly</span>
+    <span style="flex:1;"></span>
+    <button class="btn" onclick="window.print()">Export PDF</button>
+    <button class="btn" onclick="exportReportCsv()">Export CSV</button>
+  </div>
+  <div class="grid cols-2" style="margin-bottom:16px;">
+    <div class="card"><div class="card-head"><h3>Revenue — last 7 days</h3></div><canvas id="revExpChart" height="140"></canvas></div>
+    <div class="card"><div class="card-head"><h3>Sales by category</h3></div><canvas id="catChart" height="140"></canvas></div>
+  </div>
+  <div class="grid cols-2">
+    <div class="card">
+      <div class="card-head"><h3>Top selling items</h3></div>
+      <table><thead><tr><th>Item</th><th>Units</th><th>Revenue</th></tr></thead><tbody>
+      ${topItems.length ? topItems.map(t=>`<tr><td>${t.name}</td><td>${t.sold}</td><td>KSh ${t.revenue.toLocaleString()}</td></tr>`).join('') : `<tr><td colspan="3" class="empty-state">No sales yet</td></tr>`}
+      </tbody></table>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Commission report</h3></div>
+      <table><thead><tr><th>Waiter</th><th>Orders</th><th>Commission due</th></tr></thead><tbody>
+      ${STAFF.filter(s=>s.role==='Waiter' && inLocation(s)).map(s=>`<tr><td>${s.name}</td><td>${s.orders||0}</td><td>KSh ${Math.round((s.sales||0)*(s.commission||0)/100).toLocaleString()}</td></tr>`).join('') || `<tr><td colspan="3" class="empty-state">No waiters at this location</td></tr>`}
+      </tbody></table>
+    </div>
+  </div>`;
+};
+function drawReportsCharts(){
+  const style = getComputedStyle(document.documentElement);
+  const ink = style.getPropertyValue('--ink-soft').trim(), border=style.getPropertyValue('--border').trim();
+  const week = computeWeekSales();
+  const c1 = document.getElementById('revExpChart');
+  if(c1) new Chart(c1,{type:'bar',data:{labels:week.labels,
+    datasets:[{label:'Revenue',data:week.data,backgroundColor:style.getPropertyValue('--basil').trim()}]},
+    options:{plugins:{legend:{labels:{color:ink}}},scales:{y:{grid:{color:border},ticks:{color:ink}},x:{grid:{display:false},ticks:{color:ink}}}}});
+  const catTotals = {};
+  CATEGORIES.forEach(c=>catTotals[c]=0);
+  ORDERS_KITCHEN.filter(inLocation).filter(o=>!o.voided).forEach(o=>{
+    o.items.forEach(i=>{
+      const m = MENU.find(x=>x.id===i.itemId);
+      if(m) catTotals[m.cat] = (catTotals[m.cat]||0) + i.q;
+    });
+  });
+  const hasCatData = Object.values(catTotals).some(v=>v>0);
+  const c2 = document.getElementById('catChart');
+  if(c2) new Chart(c2,{type:'doughnut',data:{labels:CATEGORIES,datasets:[{data:hasCatData?Object.values(catTotals):CATEGORIES.map(()=>0),
+    backgroundColor:[style.getPropertyValue('--ember').trim(),style.getPropertyValue('--saffron').trim(),style.getPropertyValue('--basil').trim(),'#8B6CD9',ink]}]},
+    options:{plugins:{legend:{position:'bottom',labels:{color:ink,boxWidth:10}}}}});
+}
+function exportReportCsv(){
+  let csv = 'Item,Units Sold,Revenue (KSh)\n';
+  computeTopItems(50).forEach(t=>{ csv += `${t.name},${t.sold},${t.revenue}\n`; });
+  csv += '\nWaiter,Orders,Commission Due (KSh)\n';
+  STAFF.filter(s=>s.role==='Waiter').forEach(s=>{ csv += `${s.name},${s.orders||0},${Math.round((s.sales||0)*(s.commission||0)/100)}\n`; });
+  downloadBlob(csv, 'ember-pos-report.csv', 'text/csv');
+  logAction(STATE.userName, 'Exported report', 'CSV');
+}
+function downloadBlob(content, filename, mime){
+  const blob = new Blob([content], {type:mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+/* ---- PURCHASING (supervisor) ---- */
+let PURCHASE_ORDERS = [];
+RENDER.purchasing = function(){
+  return `
+  <div class="topbar" style="margin-bottom:18px;">
+    <span class="muted">${PURCHASE_ORDERS.filter(p=>p.status!=='Delivered').length} open purchase orders</span>
+    <button class="btn btn-ember" onclick="openPoForm()">${icon('plus')} New purchase order</button>
+  </div>
+  <div class="card">
+    <table id="po-table"><thead><tr><th>PO #</th><th>Supplier</th><th>Items</th><th>Status</th><th>ETA</th><th></th></tr></thead>
+    <tbody>${poRowsHtml()}</tbody></table>
+  </div>`;
+};
+function poRowsHtml(){
+  return PURCHASE_ORDERS.filter(inLocation).map(p=>`<tr><td style="font-family:var(--font-mono)">${p.id}</td><td>${p.supplier}</td><td>${p.items}</td>
+    <td>${p.status==='Delivered'?'<span class="badge badge-ok">Delivered</span>':p.status==='In transit'?'<span class="badge badge-warn">In transit</span>':'<span class="badge badge-neutral">Pending</span>'}</td>
+    <td>${p.eta}</td><td>${p.status!=='Delivered'?`<button class="btn btn-sm" onclick="advancePo('${p.id}')">Advance</button>`:'—'}</td></tr>`).join('') || `<tr><td colspan="6" class="empty-state">No purchase orders at this location</td></tr>`;
+}
+function openPoForm(){
+  openModal(`
+    <h3>New purchase order</h3>
+    <div class="form-group"><label>Supplier</label><input id="po-supplier" placeholder="e.g. Farm Fresh Ltd"></div>
+    <div class="form-group"><label>Items</label><input id="po-items" placeholder="e.g. Beef Patty x100"></div>
+    <div class="form-group"><label>Expected date</label><input id="po-eta" placeholder="e.g. Jul 20"></div>
+    <p class="field-error" id="po-error"></p>
+    <div style="display:flex;gap:8px;"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-ember" style="flex:1;" onclick="savePo()">Create PO</button></div>`);
+}
+function savePo(){
+  const supplier = document.getElementById('po-supplier').value.trim();
+  const items = document.getElementById('po-items').value.trim();
+  const eta = document.getElementById('po-eta').value.trim() || 'TBD';
+  const err = document.getElementById('po-error');
+  if(!supplier || !items){ err.textContent='Enter a supplier and the items ordered.'; err.classList.add('show'); return; }
+  const id = 'PO-'+(2200+PURCHASE_ORDERS.length+Math.floor(Math.random()*90));
+  const locationId = STATE.locationId==='all' ? LOCATIONS[0].id : STATE.locationId;
+  PURCHASE_ORDERS.unshift({id, supplier, items, status:'Pending', eta, locationId});
+  logAction(STATE.userName, 'Created purchase order', `${id} · ${supplier}`);
+  closeModal(); showToast('Purchase order created.', 'success'); DB.persist('purchaseOrders', PURCHASE_ORDERS); goView('purchasing');
+}
+function advancePo(id){
+  const p = PURCHASE_ORDERS.find(x=>x.id===id);
+  const flow = {Pending:'In transit', 'In transit':'Delivered'};
+  if(flow[p.status]) p.status = flow[p.status];
+  logAction(STATE.userName, 'Advanced purchase order', `${id} → ${p.status}`);
+  DB.persist('purchaseOrders', PURCHASE_ORDERS);
+  showToast(`${id} is now ${p.status}.`, 'success');
+  goView('purchasing');
+}
+
+/* ---- WAITER: new order ---- */
+RENDER.neworder = function(){
+  return `
+  <div class="order-layout">
+    <div>
+      <div class="filters" id="cat-filters" style="margin-bottom:16px;">
+        ${['All',...CATEGORIES].map((c,i)=>`<span class="chip ${i===0?'active':''}" onclick="filterOrderMenu('${c}',this)">${c}</span>`).join('')}
+      </div>
+      <div class="grid cols-4" id="order-menu-grid" style="grid-template-columns:repeat(4,1fr);"></div>
+    </div>
+    <div class="card" style="position:sticky;top:20px;">
+      <div class="card-head"><h3>Order — Table <select id="table-select" onchange="STATE.selectedTable=this.value" style="border:1px solid var(--border);border-radius:6px;background:var(--paper);color:var(--ink);padding:2px 6px;">${TABLES.filter(t=>t.status!=='cleaning').filter(inLocation).map(t=>`<option value="${t.id}" ${STATE.selectedTable===t.id?'selected':''}>${t.id}</option>`).join('')}</select></h3></div>
+      <div id="cart-lines"><div class="empty-state" style="padding:24px 10px;">${icon('menu')}<div>No items yet</div></div></div>
+      <div class="form-group" style="margin-top:10px;">
+        <label>Discount %</label>
+        <input id="cart-discount" type="number" min="0" max="100" value="${STATE.discountPct}" oninput="STATE.discountPct=parseFloat(this.value)||0; renderCart();">
+      </div>
+      <div style="margin-top:4px;">
+        <div class="cart-total-row"><span>Subtotal</span><span id="cart-sub">KSh 0</span></div>
+        <div class="cart-total-row"><span>Discount</span><span id="cart-discount-amt">− KSh 0</span></div>
+        <div class="cart-total-row"><span>${TAX_CONFIG.label} (${Math.round(TAX_CONFIG.rate*100)}%)</span><span id="cart-tax">KSh 0</span></div>
+        <div class="cart-total-row grand"><span>Total</span><span id="cart-total">KSh 0</span></div>
+      </div>
+      <p class="field-error" id="cart-error"></p>
+      <button class="btn btn-ember" style="width:100%;margin-top:12px;" onclick="sendToKitchen()">${icon('fire')} Send to kitchen</button>
+    </div>
+  </div>`;
+};
+function orderMenuHtml(items){
+  return items.map(m=>`
+    <div class="menu-item-card" style="${!m.avail?'opacity:.45;pointer-events:none;':''}" onclick="addToCart(${m.id})">
+      <div class="mi-photo" style="background:var(--ember-soft);">${m.emoji}</div>
+      <div class="mi-body"><div class="miname">${m.name}</div><div class="micat">${m.cat}${!m.avail?" · 86'd":''}</div><div class="miprice">KSh ${m.price}</div></div>
+    </div>`).join('');
+}
+function filterOrderMenu(cat, el){
+  document.querySelectorAll('#cat-filters .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  const items = cat==='All'?MENU:MENU.filter(m=>m.cat===cat);
+  document.getElementById('order-menu-grid').innerHTML = orderMenuHtml(items);
+}
+function addToCart(id){
+  const m = MENU.find(x=>x.id===id);
+  if(!m || !m.avail){ showToast('That item is currently unavailable.', 'error'); return; }
+  const line = STATE.cart.find(c=>c.itemId===id);
+  if(line) line.qty++; else STATE.cart.push({itemId:id, qty:1});
+  renderCart();
+}
+function changeQty(id, delta){
+  const line = STATE.cart.find(c=>c.itemId===id);
+  if(!line) return;
+  line.qty += delta;
+  if(line.qty<=0) STATE.cart = STATE.cart.filter(c=>c.itemId!==id);
+  renderCart();
+}
+function renderCart(){
+  const box = document.getElementById('cart-lines');
+  if(!box) return;
+  if(STATE.cart.length===0){ box.innerHTML = `<div class="empty-state" style="padding:24px 10px;">${icon('menu')}<div>No items yet</div></div>`; }
+  else {
+    box.innerHTML = STATE.cart.map(c=>{
+      const m = MENU.find(x=>x.id===c.itemId);
+      return `<div class="cart-line">
+        <div>${m.emoji} ${m.name}</div>
+        <div class="qty-ctrl">
+          <button onclick="changeQty(${m.id},-1)">−</button><span>${c.qty}</span><button onclick="changeQty(${m.id},1)">+</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  const sub = STATE.cart.reduce((s,c)=>s + MENU.find(x=>x.id===c.itemId).price*c.qty, 0);
+  const discountAmt = Math.round(sub * (Math.min(100,Math.max(0,STATE.discountPct))/100));
+  const taxable = sub - discountAmt;
+  const tax = Math.round(taxable*TAX_CONFIG.rate);
+  document.getElementById('cart-sub').textContent = 'KSh '+sub.toLocaleString();
+  document.getElementById('cart-discount-amt').textContent = '− KSh '+discountAmt.toLocaleString();
+  document.getElementById('cart-tax').textContent = 'KSh '+tax.toLocaleString();
+  document.getElementById('cart-total').textContent = 'KSh '+(taxable+tax).toLocaleString();
+}
+async function sendToKitchen(){
+  const err = document.getElementById('cart-error');
+  err.classList.remove('show');
+  if(STATE.cart.length===0){ err.textContent='Add at least one item to the order first.'; err.classList.add('show'); return; }
+  if(!STATE.selectedTable){ err.textContent='Choose a table for this order.'; err.classList.add('show'); return; }
+  const orderId = '#'+(1001+ORDERS_KITCHEN.length);
+  const items = STATE.cart.map(c=>{
+    const m = MENU.find(x=>x.id===c.itemId);
+    return {n:m.name, q:c.qty, itemId:m.id};
+  });
+  const order = {id:orderId, table:STATE.selectedTable, waiter:STATE.userName, status:'new', placed:0, items, discount:STATE.discountPct, voided:false, locationId: STATE.locationId==='all' ? (TABLES.find(t=>t.id===STATE.selectedTable)||{}).locationId : STATE.locationId, createdAt:new Date().toISOString()};
+  ORDERS_KITCHEN.unshift(order);
+  // BACKEND: inventory should really be deducted when the kitchen marks items
+  // "served", but we deduct on send here for a simple, visible demo.
+  for(const c of STATE.cart){
+    const m = MENU.find(x=>x.id===c.itemId);
+    for(const r of (m.recipe||[])){ await DB.adjustInventory(r.invId, -r.qty*c.qty); }
+  }
+  const queued = queueIfOffline('Send order to kitchen', order);
+  await DB.saveOrder(order);
+  logAction(STATE.userName, 'Sent order to kitchen', `${orderId} · Table ${STATE.selectedTable}`);
+  showToast(queued ? 'Saved locally — will reach the kitchen once you\'re back online.' : 'Order sent to kitchen.', 'success');
+  STATE.cart = []; STATE.discountPct = 0;
+  renderCart();
+}
+
+/* ---- WAITER: my orders ---- */
+RENDER.myorders = function(){
+  const mine = ORDERS_KITCHEN.filter(o=>(o.waiter===STATE.userName || o.waiter==='Grace N.') && inLocation(o));
+  return `<div class="card"><table><thead><tr><th>Order</th><th>Table</th><th>Status</th><th>Placed</th><th>Items</th><th></th></tr></thead><tbody>
+  ${mine.map(o=>`<tr style="${o.voided?'opacity:.5;':''}"><td style="font-family:var(--font-mono)">${o.id}</td><td>${o.table}</td><td>${o.voided?'<span class="badge badge-void">Voided</span>':statusBadge(o.status)}</td><td>${o.placed} min ago</td><td>${o.items.map(i=>i.q+'× '+i.n).join(', ')}</td>
+  <td>${(!o.voided && o.status!=='served')?`<button class="btn btn-sm" onclick="openVoidForm('${o.id}')">Void</button>`:'—'}</td></tr>`).join('') || `<tr><td colspan="6" class="empty-state">No active orders</td></tr>`}
+  </tbody></table></div>`;
+};
+function statusBadge(s){
+  const map = {new:'badge-neutral', preparing:'badge-warn', ready:'badge-ok', served:'badge-ok'};
+  return `<span class="badge ${map[s]}">${s[0].toUpperCase()+s.slice(1)}</span>`;
+}
+function openVoidForm(id){
+  openModal(`
+    <h3>Void order ${id}</h3>
+    <div class="form-group"><label>Reason</label><textarea id="void-reason" rows="3" placeholder="e.g. guest changed their mind"></textarea></div>
+    <p class="field-error" id="void-error"></p>
+    <div style="display:flex;gap:8px;"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-ember" style="flex:1;background:var(--danger);border-color:var(--danger);" onclick="confirmVoid('${id}')">Void order</button></div>`);
+}
+function confirmVoid(id){
+  const reason = document.getElementById('void-reason').value.trim();
+  const err = document.getElementById('void-error');
+  if(!reason){ err.textContent='A reason is required to void an order.'; err.classList.add('show'); return; }
+  const o = ORDERS_KITCHEN.find(x=>x.id===id);
+  o.voided = true;
+  logAction(STATE.userName, 'Voided order', `${id} · ${reason}`);
+  pushNotification('Order voided', `${id} (Table ${o.table}) voided by ${STATE.userName}: ${reason}`, 'void');
+  DB.saveOrder(o);
+  closeModal(); showToast('Order voided.', 'success'); goView(STATE.view);
+}
+
+/* ---- WAITER: earnings ---- */
+RENDER.earnings = function(){
+  const me = STAFF.find(s=>s.name===STATE.userName) || STAFF[0];
+  const myToday = COMPLETED_PAYMENTS.filter(cp=>cp.waiter===STATE.userName && !cp.refunded && isSameDay(cp.ts));
+  const todaySales = myToday.reduce((s,p)=>s+p.total,0);
+  const todayCommission = Math.round(todaySales*(me.commission||0)/100);
+  const perf = computeStaffPerf(me);
+  return `
+  <div class="grid cols-4" style="margin-bottom:16px;">
+    <div class="card kpi"><div class="kpi-label">Today's orders</div><div class="kpi-val">${myToday.length}</div></div>
+    <div class="card kpi"><div class="kpi-label">Today's sales</div><div class="kpi-val">KSh ${todaySales.toLocaleString()}</div></div>
+    <div class="card kpi"><div class="kpi-label">Commission (${me.commission||0}%)</div><div class="kpi-val">KSh ${todayCommission.toLocaleString()}</div></div>
+    <div class="card kpi"><div class="kpi-label">Tips today</div><div class="kpi-val">Not tracked yet</div></div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h3>Overall performance</h3><span class="muted">${me.orders||0} orders · KSh ${(me.sales||0).toLocaleString()} in sales</span></div>
+    ${perf===null ? `<p class="muted">No completed orders yet.</p>` : `
+    <div class="progress-bar"><div style="width:${perf}%"></div></div>
+    <p style="color:var(--ink-soft);font-size:12.5px;margin-top:8px;">${perf}% of your orders completed without a refund</p>`}
+  </div>`;
+};
+
+/* ---- KITCHEN: KDS ---- */
+RENDER.kds = function(){
+  const cols = [['new','New orders'],['preparing','Preparing'],['ready','Ready'],['served','Served']];
+  const orders = ORDERS_KITCHEN.filter(inLocation);
+  return `<div class="kds-board">
+    ${cols.map(([key,label])=>`
+      <div>
+        <div class="kds-col-head"><span>${label}</span><span>${orders.filter(o=>o.status===key && !o.voided).length}</span></div>
+        <div id="kds-col-${key}">${orders.filter(o=>o.status===key && !o.voided).map(ticketHtml).join('') || emptyCol()}</div>
+      </div>`).join('')}
+  </div>`;
+};
+function emptyCol(){return `<div class="empty-state" style="padding:20px 6px;font-size:12px;">Nothing here</div>`;}
+function ticketHtml(o){
+  const cls = o.placed>=20?'late':(o.placed>=10?'warn':'');
+  const nextAction = {new:['Start preparing','preparing'], preparing:['Mark ready','ready'], ready:['Mark served','served'], served:[null,null]}[o.status];
+  return `<div class="ticket" id="ticket-${o.id.replace('#','')}">
+    <div class="ticket-head">
+      <div><div class="tnum">${o.id}</div><div class="ttable">Table ${o.table} · ${o.waiter}</div></div>
+      <div class="ticket-timer ${cls}" data-placed="${o.placed}">${o.placed}m</div>
+    </div>
+    <div class="ticket-body"><ul>${o.items.map(i=>`<li><span>${i.n}</span><span>×${i.q}</span></li>`).join('')}</ul></div>
+    <div class="ticket-foot">
+      ${nextAction[0] ? `<button class="btn btn-sm btn-ember" onclick="advanceOrder('${o.id}')">${nextAction[0]}</button>` : `<button class="btn btn-sm" disabled>Complete</button>`}
+    </div>
+  </div>`;
+}
+async function advanceOrder(id){
+  const o = ORDERS_KITCHEN.find(x=>x.id===id);
+  const flow = {new:'preparing', preparing:'ready', ready:'served'};
+  const wasServed = o.status==='served';
+  if(flow[o.status]) o.status = flow[o.status];
+  await DB.saveOrder(o);
+  logAction(STATE.userName, 'Advanced ticket', `${id} → ${o.status}`);
+  if(o.status==='served' && !wasServed) sendOrderToPayments(o);
+  goView('kds');
+}
+// This is what actually connects the kitchen to the cashier: the moment an
+// order is marked served, it becomes a real, itemized bill waiting to be
+// paid — instead of the cashier only ever seeing hardcoded demo data.
+function sendOrderToPayments(o){
+  if(PAYMENTS_DUE.find(p=>p.id===o.id) || COMPLETED_PAYMENTS.find(p=>p.id===o.id)) return;
+  const itemLines = o.items.map(i=>{
+    const m = MENU.find(x=>x.id===i.itemId);
+    return { n:i.n, q:i.q, price: m ? m.price : 0 };
+  });
+  const sub = itemLines.reduce((s,l)=>s+l.price*l.q, 0);
+  const discountAmt = Math.round(sub * (o.discount||0)/100);
+  const tax = Math.round((sub-discountAmt) * TAX_CONFIG.rate);
+  const total = (sub - discountAmt) + tax;
+  const record = { id:o.id, table:o.table, waiter:o.waiter, total, items:o.items.length, discount:o.discount||0, locationId:o.locationId, itemLines };
+  PAYMENTS_DUE.unshift(record);
+  DB.persist('paymentsDue', PAYMENTS_DUE);
+  pushNotification('Ready for payment', `${o.id} (Table ${o.table}) is ready to be paid.`, 'payment');
+  if(STATE.view==='payments') goView('payments');
+}
+function tickKds(){
+  ORDERS_KITCHEN.forEach(o=>{ if(o.status!=='served') o.placed += 1; });
+  if(STATE.view==='kds'){
+    const orders = ORDERS_KITCHEN.filter(inLocation);
+    ['new','preparing','ready','served'].forEach(key=>{
+      const col = document.getElementById('kds-col-'+key);
+      if(col) col.innerHTML = orders.filter(o=>o.status===key && !o.voided).map(ticketHtml).join('') || emptyCol();
+    });
+  }
+}
+
+/* ---- CASHIER: payments ---- */
+let COMPLETED_PAYMENTS = [];
+RENDER.payments = function(){
+  const due = PAYMENTS_DUE.filter(inLocation);
+  const completed = COMPLETED_PAYMENTS.filter(inLocation);
+  return `<div class="grid cols-3">
+  ${due.map(p=>`
+    <div class="card">
+      <div class="card-head"><h3>${p.id} · Table ${p.table}</h3></div>
+      <p style="color:var(--ink-soft);font-size:12.5px;margin:0 0 10px;">${p.waiter} · ${p.items} items</p>
+      <div style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--ember);margin-bottom:14px;">KSh ${p.total.toLocaleString()}</div>
+      <button class="btn btn-ember" style="width:100%;" onclick="openPaymentModal('${p.id}')">${icon('card')} Take payment</button>
+    </div>`).join('') || `<div class="empty-state" style="grid-column:1/-1;">${icon('check')}<div>All tables settled</div></div>`}
+  </div>
+  ${completed.length? `
+  <div class="card" style="margin-top:16px;">
+    <div class="card-head"><h3>Recent payments</h3><span class="muted">Refunds available for 24h</span></div>
+    <table><thead><tr><th>Order</th><th>Total</th><th>Method</th><th>Time</th><th></th></tr></thead><tbody>
+    ${completed.map(cp=>`<tr><td>${cp.id}</td><td>KSh ${cp.total.toLocaleString()}</td><td>${cp.method}</td><td>${timeAgo(cp.ts)}</td>
+      <td>${cp.refunded?'<span class="badge badge-void">Refunded</span>':`<button class="btn btn-sm" onclick="openRefundForm('${cp.id}')">Refund</button>`}</td></tr>`).join('')}
+    </tbody></table>
+  </div>`:''}`;
+};
+
+/* ---- ADMIN/SUPERVISOR: TRANSACTIONS (full payment history) ---- */
+RENDER.transactions = function(){
+  const rows = COMPLETED_PAYMENTS.filter(inLocation).slice().sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+  const totalTaken = rows.filter(r=>!r.refunded).reduce((s,r)=>s+r.total,0);
+  const totalRefunded = rows.filter(r=>r.refunded).reduce((s,r)=>s+r.total,0);
+  return `
+  <div class="grid cols-3" style="margin-bottom:16px;">
+    <div class="card kpi"><div class="kpi-label">Transactions</div><div class="kpi-val">${rows.length}</div></div>
+    <div class="card kpi"><div class="kpi-label">Total taken</div><div class="kpi-val">KSh ${totalTaken.toLocaleString()}</div></div>
+    <div class="card kpi"><div class="kpi-label">Refunded</div><div class="kpi-val">KSh ${totalRefunded.toLocaleString()}</div></div>
+  </div>
+  <div class="card">
+    <div class="card-head"><h3>All payments</h3><span class="muted">${STATE.locationId==='all'?'All locations':(LOCATIONS.find(l=>l.id===STATE.locationId)||{}).name}</span></div>
+    <table><thead><tr><th>Order</th><th>Table</th><th>Total</th><th>Method</th>${STATE.locationId==='all'?'<th>Location</th>':''}<th>Time</th><th>Status</th></tr></thead><tbody>
+    ${rows.map(cp=>`<tr>
+      <td style="font-family:var(--font-mono)">${cp.id}</td>
+      <td>${cp.table}</td>
+      <td>KSh ${cp.total.toLocaleString()}</td>
+      <td>${cp.method}</td>
+      ${STATE.locationId==='all'?`<td>${(LOCATIONS.find(l=>l.id===cp.locationId)||{name:'—'}).name}</td>`:''}
+      <td style="color:var(--ink-soft)">${new Date(cp.ts).toLocaleString()}</td>
+      <td>${cp.refunded?'<span class="badge badge-void">Refunded</span>':'<span class="badge badge-ok">Paid</span>'}</td>
+    </tr>`).join('') || `<tr><td colspan="7" class="empty-state">No transactions yet</td></tr>`}
+    </tbody></table>
+  </div>`;
+};
+let PENDING_METHOD = 'Cash';
+function openPaymentModal(id){
+  const p = PAYMENTS_DUE.find(x=>x.id===id);
+  PENDING_METHOD = 'Cash';
+  openModal(`
+    <h3>Take payment — ${p.id}</h3>
+    <p style="color:var(--ink-soft);font-size:13px;">Table ${p.table} · Total due</p>
+    <div class="form-group">
+      <label>Discount %</label>
+      <input id="pay-discount" type="number" min="0" max="100" value="${p.discount||0}" oninput="recalcPaymentTotal('${p.id}')">
+    </div>
+    <div style="font-family:var(--font-mono);font-size:26px;font-weight:700;margin:6px 0 14px;" id="pay-total-display">KSh ${p.total.toLocaleString()}</div>
+    <div class="filters" id="pay-methods" style="margin-bottom:16px;">
+      ${['Cash','Card','M-Pesa','Bank','Mixed'].map((m,i)=>`<span class="chip ${i===0?'active':''}" onclick="selectPaymentMethod('${m}',this)">${m}</span>`).join('')}
+    </div>
+    <p class="field-error" id="pay-error"></p>
+    <button class="btn btn-ember" style="width:100%;" onclick="confirmPayment('${p.id}')">${icon('printer')} Confirm & generate receipt</button>
+  `);
+}
+function selectPaymentMethod(m, el){
+  PENDING_METHOD = m;
+  document.querySelectorAll('#pay-methods .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+}
+function recalcPaymentTotal(id){
+  const p = PAYMENTS_DUE.find(x=>x.id===id);
+  const disc = Math.min(100,Math.max(0, parseFloat(document.getElementById('pay-discount').value)||0));
+  const total = Math.round(p.total * (1-disc/100));
+  document.getElementById('pay-total-display').textContent = 'KSh '+total.toLocaleString();
+}
+function confirmPayment(id){
+  const p = PAYMENTS_DUE.find(x=>x.id===id);
+  const disc = Math.min(100,Math.max(0, parseFloat(document.getElementById('pay-discount').value)||0));
+  const total = Math.round(p.total * (1-disc/100));
+  const idx = PAYMENTS_DUE.findIndex(x=>x.id===id);
+  if(idx>-1) PAYMENTS_DUE.splice(idx,1);
+  const record = {id:p.id, table:p.table, total, method:PENDING_METHOD, ts:new Date().toISOString(), refunded:false, discount:disc, locationId:p.locationId, itemLines:p.itemLines||[], waiter:p.waiter};
+  COMPLETED_PAYMENTS.unshift(record);
+  // Actually credit the waiter for this sale — this never happened before,
+  // so commission/performance reporting always showed zero regardless of
+  // real business done.
+  const waiterRec = STAFF.find(s=>s.name===p.waiter);
+  if(waiterRec){ waiterRec.orders = (waiterRec.orders||0)+1; waiterRec.sales = (waiterRec.sales||0)+total; DB.saveStaff(STAFF); }
+  logAction(STATE.userName, 'Took payment', `${p.id} · KSh ${total} · ${PENDING_METHOD}`);
+  queueIfOffline('Record payment', record);
+  DB.persist('paymentsDue', PAYMENTS_DUE);
+  DB.persist('completedPayments', COMPLETED_PAYMENTS);
+  showReceipt(record);
+}
+function openRefundForm(id){
+  openModal(`
+    <h3>Refund ${id}</h3>
+    <div class="form-group"><label>Refund amount (KSh)</label><input id="rf-amount" type="number" min="1"></div>
+    <div class="form-group"><label>Reason</label><textarea id="rf-reason" rows="3" placeholder="e.g. incorrect order"></textarea></div>
+    <p class="field-error" id="rf-error"></p>
+    <div style="display:flex;gap:8px;"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-ember" style="flex:1;background:var(--danger);border-color:var(--danger);" onclick="confirmRefund('${id}')">Process refund</button></div>`);
+}
+function confirmRefund(id){
+  const amount = parseFloat(document.getElementById('rf-amount').value);
+  const reason = document.getElementById('rf-reason').value.trim();
+  const err = document.getElementById('rf-error');
+  const cp = COMPLETED_PAYMENTS.find(x=>x.id===id);
+  if(isNaN(amount) || amount<=0 || amount>cp.total){ err.textContent = `Enter an amount between 1 and ${cp.total}.`; err.classList.add('show'); return; }
+  if(!reason){ err.textContent = 'A reason is required for refunds.'; err.classList.add('show'); return; }
+  cp.refunded = true;
+  if(cp.waiter){
+    const waiterRec = STAFF.find(s=>s.name===cp.waiter);
+    if(waiterRec){
+      waiterRec.orders = Math.max(0,(waiterRec.orders||0)-1);
+      waiterRec.sales = Math.max(0,(waiterRec.sales||0)-cp.total);
+      waiterRec.refundsCount = (waiterRec.refundsCount||0)+1;
+      DB.saveStaff(STAFF);
+    }
+  }
+  logAction(STATE.userName, 'Processed refund', `${id} · KSh ${amount} · ${reason}`);
+  pushNotification('Refund processed', `${id}: KSh ${amount} refunded by ${STATE.userName} — ${reason}`, 'refund');
+  DB.persist('completedPayments', COMPLETED_PAYMENTS);
+  closeModal(); showToast('Refund processed.', 'success'); goView('payments');
+}
+
+/* ---- VIRTUAL RECEIPT + QR CODE ---- */
+function showReceipt(record){
+  const items = (record.itemLines && record.itemLines.length) ? record.itemLines : [{n:'Order items', q:1, price:record.total}];
+  const sub = items.reduce((s,i)=>s+i.price*i.q,0);
+  const discountAmt = Math.round(sub*(record.discount||0)/100);
+  const taxable = sub-discountAmt;
+  const tax = Math.round(taxable*TAX_CONFIG.rate);
+  openModal(`
+    <div id="receipt-modal-content">
+      <div class="receipt" id="print-area">
+        <div class="rhead">
+          <div class="rtitle">${CONFIG.restaurantName}</div>
+          <div>${TAX_CONFIG.label} PIN: ${TAX_CONFIG.taxId}</div>
+          <div>${new Date(record.ts).toLocaleString()}</div>
+          <div>Receipt · Table ${record.table} · Order ${record.id}</div>
+        </div>
+        <hr>
+        ${items.map(i=>`<div class="rline"><span>${i.q}× ${i.n}</span><span>KSh ${(i.price*i.q).toLocaleString()}</span></div>`).join('')}
+        <hr>
+        <div class="rline"><span>Subtotal</span><span>KSh ${sub.toLocaleString()}</span></div>
+        <div class="rline"><span>Discount (${record.discount||0}%)</span><span>− KSh ${discountAmt.toLocaleString()}</span></div>
+        <div class="rline"><span>${TAX_CONFIG.label} (${Math.round(TAX_CONFIG.rate*100)}%)</span><span>KSh ${tax.toLocaleString()}</span></div>
+        <div class="rline" style="font-weight:800;"><span>Total (${record.method})</span><span>KSh ${record.total.toLocaleString()}</span></div>
+        <div class="qr-box" id="receipt-qr"></div>
+        <div style="text-align:center;color:var(--ink-soft);font-size:11px;">Scan to visit us online · Thank you!</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="btn" onclick="closeModal()">Close</button>
+      <button class="btn btn-ember" style="flex:1;" onclick="window.print()">${icon('printer')} Print receipt</button>
+    </div>`);
+  renderReceiptQr();
+}
+function renderReceiptQr(){
+  const el = document.getElementById('receipt-qr');
+  if(!el) return;
+  try{
+    if(window.QRCode){ new QRCode(el, {text: CONFIG.siteUrl, width:110, height:110, correctLevel: QRCode.CorrectLevel.M}); }
+    else { el.textContent = CONFIG.siteUrl; }
+  }catch(e){ el.textContent = CONFIG.siteUrl; }
+}
+
+/* ---- CASHIER: EOD ---- */
+RENDER.eod = function(){
+  const paid = todaysCompletedPayments();
+  const cashSales = paid.filter(p=>p.method==='Cash').reduce((s,p)=>s+p.total,0);
+  const otherSales = paid.filter(p=>p.method!=='Cash').reduce((s,p)=>s+p.total,0);
+  const refunds = COMPLETED_PAYMENTS.filter(inLocation).filter(c=>c.refunded && isSameDay(c.ts)).reduce((s,c)=>s+c.total,0);
+  return `
+  <div class="grid cols-4" style="margin-bottom:16px;">
+    <div class="card kpi"><div class="kpi-label">Cash sales today</div><div class="kpi-val">KSh ${cashSales.toLocaleString()}</div></div>
+    <div class="card kpi"><div class="kpi-label">Card + M-Pesa today</div><div class="kpi-val">KSh ${otherSales.toLocaleString()}</div></div>
+    <div class="card kpi"><div class="kpi-label">Refunds today</div><div class="kpi-val">KSh ${refunds.toLocaleString()}</div></div>
+    <div class="card kpi"><div class="kpi-label">Total takings today</div><div class="kpi-val">KSh ${(cashSales+otherSales).toLocaleString()}</div></div>
+  </div>
+  <div class="card" id="eod-card">
+    <div class="card-head"><h3>Cash drawer reconciliation</h3></div>
+    <div class="form-group"><label>Opening float this shift (KSh)</label><input id="eod-float" type="number" min="0" value="0" oninput="recalcExpectedCash(${cashSales})"></div>
+    <table><tbody>
+      <tr><td>Opening float</td><td style="text-align:right;" id="eod-float-display">KSh 0</td></tr>
+      <tr><td>Cash sales today</td><td style="text-align:right;">KSh ${cashSales.toLocaleString()}</td></tr>
+      <tr><td style="font-weight:800;">Expected in drawer</td><td style="text-align:right;font-weight:800;" id="expected-cash">KSh ${cashSales.toLocaleString()}</td></tr>
+    </tbody></table>
+    <div class="form-group" style="margin-top:16px;"><label>Counted amount (KSh)</label><input id="eod-counted" type="number" min="0"></div>
+    <p class="field-error" id="eod-error"></p>
+    <button class="btn btn-ember" onclick="closeShift(${cashSales})">Close shift</button>
+    <div id="eod-summary" style="margin-top:14px;"></div>
+  </div>`;
+};
+function recalcExpectedCash(cashSales){
+  const float = parseFloat(document.getElementById('eod-float').value)||0;
+  document.getElementById('eod-float-display').textContent = 'KSh '+float.toLocaleString();
+  document.getElementById('expected-cash').textContent = 'KSh '+(float+cashSales).toLocaleString();
+}
+function closeShift(cashSales){
+  const float = parseFloat(document.getElementById('eod-float').value)||0;
+  const expected = float + cashSales;
+  const counted = parseFloat(document.getElementById('eod-counted').value);
+  const err = document.getElementById('eod-error');
+  if(isNaN(counted) || counted<0){ err.textContent = 'Enter the amount you actually counted in the drawer.'; err.classList.add('show'); return; }
+  err.classList.remove('show');
+  const variance = counted - expected;
+  const summary = document.getElementById('eod-summary');
+  summary.innerHTML = `<div class="card" style="background:var(--paper);">
+    <strong>Shift closed.</strong> Counted KSh ${counted.toLocaleString()} vs expected KSh ${expected.toLocaleString()}.
+    <div style="margin-top:6px;color:${variance===0?'var(--basil)':'var(--danger)'};font-weight:700;">
+      ${variance===0? 'Drawer balanced exactly.' : (variance>0? `Over by KSh ${variance.toLocaleString()}` : `Short by KSh ${Math.abs(variance).toLocaleString()}`)}
+    </div></div>`;
+  document.getElementById('eod-counted').disabled = true;
+  document.querySelector('#eod-card .btn-ember').disabled = true;
+  logAction(STATE.userName, 'Closed shift (EOD)', `Counted KSh ${counted}, variance KSh ${variance}`);
+  if(variance!==0) pushNotification('Drawer variance at EOD', `${STATE.userName} closed with a variance of KSh ${variance}.`, 'eod');
+  showToast('Shift closed and logged.', 'success');
+}
+
+/* ---- ADMIN: SETTINGS ---- */
+RENDER.settings = function(){
+  return `
+  <div class="grid cols-2">
+    <div class="card">
+      <div class="card-head"><h3>Tax & compliance</h3></div>
+      <div class="form-group"><label>Tax label</label><input id="set-taxlabel" value="${TAX_CONFIG.label}"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Rate (%)</label><input id="set-taxrate" type="number" min="0" max="100" value="${Math.round(TAX_CONFIG.rate*100)}"></div>
+        <div class="form-group"><label>Tax / PIN number</label><input id="set-taxid" value="${TAX_CONFIG.taxId}"></div>
+      </div>
+      <p class="field-error" id="set-tax-error"></p>
+      <button class="btn btn-ember" onclick="saveTaxSettings()">Save tax settings</button>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Receipt & business info</h3></div>
+      <div class="form-group"><label>Restaurant name</label><input id="set-name" value="${CONFIG.restaurantName}"></div>
+      <div class="form-group"><label>Website (receipt QR code target)</label><input id="set-site" value="${CONFIG.siteUrl}"></div>
+      <p class="field-error" id="set-site-error"></p>
+      <button class="btn btn-ember" onclick="saveBusinessSettings()">Save</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <div class="card-head"><h3>Locations</h3><span class="muted">Multi-location support</span></div>
+    <table><tbody>
+    ${LOCATIONS.map(l=>`<tr><td>${l.name}</td><td style="text-align:right;">${LOCATIONS.length>1?`<button class="btn btn-sm" onclick="removeLocation('${l.id}')">Remove</button>`:'—'}</td></tr>`).join('')}
+    </tbody></table>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <input id="new-loc-name" placeholder="New location name" style="flex:1;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--paper);color:var(--ink);">
+      <button class="btn btn-ember" onclick="addLocation()">Add location</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <div class="card-head"><h3>Backend connection status</h3></div>
+    <p style="font-size:13px;">Supabase: ${BACKEND.supabaseReady?'<span class="badge badge-ok">Connected — shared across all devices</span>':'<span class="badge badge-neutral">Not configured — using local mock data</span>'}</p>
+    <p style="font-size:13px;">Firebase Auth: ${BACKEND.firebaseReady?'<span class="badge badge-ok">Connected</span>':'<span class="badge badge-neutral">Not configured — using mock login</span>'}</p>
+    <p style="font-size:13px;">Supabase: <span class="badge badge-neutral">Open access — no login session required (by choice)</span></p>
+    <p style="font-size:13px;">Saved changes persisting in this browser: ${Storage.isPersistent?'<span class="badge badge-ok">Yes</span>':'<span class="badge badge-danger">No — changes will be lost on reload</span>'}</p>
+    ${BACKEND.failedTables.size ? `<p style="font-size:13px;color:var(--danger);font-weight:700;">⚠ NOT syncing to the shared database right now: ${[...BACKEND.failedTables].join(', ')}. Changes to these are only saved on this device until this clears — check the schema has been run and Anonymous Sign-ins is enabled in Supabase.</p>` : `<p style="font-size:13px;"><span class="badge badge-ok">All data syncing normally</span></p>`}
+    <p style="color:var(--ink-soft);font-size:12px;">Add your project keys to the <code>CONFIG</code> object near the top of the script to go live — no other code changes needed.</p>
+    ${BACKEND.supabaseReady?`<p style="color:var(--saffron);font-size:12px;margin-top:8px;">⚠ Security note: database access currently relies only on the public anon key, since Firebase and Supabase auth aren't linked yet. Anyone with this key (visible in the page source) could read/write the database directly, bypassing this app's role checks. Fine for an internal pilot — ask your developer about adding a Supabase Edge Function before wider rollout.</p>`:''}
+  </div>`;
+};
+function saveTaxSettings(){
+  const label = document.getElementById('set-taxlabel').value.trim();
+  const rate = parseFloat(document.getElementById('set-taxrate').value);
+  const taxId = document.getElementById('set-taxid').value.trim();
+  const err = document.getElementById('set-tax-error');
+  if(!label || isNaN(rate) || rate<0 || rate>100 || !taxId){ err.textContent='Enter a valid label, a rate between 0–100, and a tax ID.'; err.classList.add('show'); return; }
+  TAX_CONFIG.label = label; TAX_CONFIG.rate = rate/100; TAX_CONFIG.taxId = taxId;
+  logAction(STATE.userName, 'Updated tax settings', `${label} ${rate}% · ${taxId}`);
+  Storage.set('taxConfig', TAX_CONFIG);
+  DB.persistConfig('tax_config', {label:TAX_CONFIG.label, rate:TAX_CONFIG.rate, taxId:TAX_CONFIG.taxId});
+  showToast('Tax settings saved.', 'success');
+}
+function saveBusinessSettings(){
+  const name = document.getElementById('set-name').value.trim();
+  const site = document.getElementById('set-site').value.trim();
+  const err = document.getElementById('set-site-error');
+  if(!name || !/^https?:\/\//.test(site)){ err.textContent='Enter a business name and a website starting with http:// or https://'; err.classList.add('show'); return; }
+  CONFIG.restaurantName = name; CONFIG.siteUrl = site;
+  logAction(STATE.userName, 'Updated business settings', `${name} · ${site}`);
+  Storage.set('businessConfig', {restaurantName:CONFIG.restaurantName, siteUrl:CONFIG.siteUrl});
+  DB.persistConfig('business_config', {restaurantName:CONFIG.restaurantName, siteUrl:CONFIG.siteUrl});
+  showToast('Business settings saved.', 'success');
+}
+function addLocation(){
+  const input = document.getElementById('new-loc-name');
+  const name = input.value.trim();
+  if(!name){ showToast('Enter a location name.', 'error'); return; }
+  const id = 'loc'+(LOCATIONS.length+1)+Math.floor(Math.random()*99);
+  LOCATIONS.push({id, name});
+  logAction(STATE.userName, 'Added location', name);
+  DB.persist('locations', LOCATIONS);
+  showToast('Location added.', 'success');
+  buildLocationSwitch();
+  goView('settings');
+}
+function removeLocation(id){
+  const idx = LOCATIONS.findIndex(l=>l.id===id);
+  const loc = LOCATIONS[idx];
+  if(LOCATIONS.length<=1) return;
+  LOCATIONS.splice(idx,1);
+  if(STATE.locationId===id) STATE.locationId = LOCATIONS[0].id;
+  logAction(STATE.userName, 'Removed location', loc.name);
+  Storage.set('locations', LOCATIONS);
+  DB.remove('locations', id);
+  showToast('Location removed.', 'success');
+  buildLocationSwitch();
+  goView('settings');
+}
+
+/* ---- AUDIT LOG ---- */
+RENDER.audit = function(){
+  return `
+  <div class="card">
+    <div class="card-head"><h3>Audit log</h3><span class="muted">${AUDIT_LOG.length} events</span></div>
+    <table><thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Details</th></tr></thead><tbody>
+    ${AUDIT_LOG.slice(0,200).map(a=>`<tr><td style="white-space:nowrap;color:var(--ink-soft);">${new Date(a.ts).toLocaleString()}</td><td style="font-weight:700;">${a.actor}</td><td>${a.action}</td><td>${a.details||''}</td></tr>`).join('') || `<tr><td colspan="4" class="empty-state">No activity yet</td></tr>`}
+    </tbody></table>
+  </div>`;
+};
+
+/* =====================================================================
+   MODAL
+===================================================================== */
+function openModal(html){
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function closeModal(){ document.getElementById('modal-overlay').classList.remove('show'); }
+document.getElementById('modal-overlay').addEventListener('click', e=>{ if(e.target.id==='modal-overlay') closeModal(); });
+
+/* =====================================================================
+   POST-RENDER PAINT HOOKS (menu grids need init paint)
+===================================================================== */
+const originalGoView = goView;
+goView = function(id){
+  originalGoView(id);
+  if(id==='menu') document.getElementById('menu-grid').innerHTML = menuGridHtml(MENU);
+  if(id==='neworder'){ document.getElementById('order-menu-grid').innerHTML = orderMenuHtml(MENU); const locTables = TABLES.filter(inLocation); if(!STATE.selectedTable || !locTables.find(t=>t.id===STATE.selectedTable)) STATE.selectedTable = (locTables[0]||{}).id; renderCart(); }
+  if(id==='payments' || id==='audit' || id==='settings' || id==='staff' || id==='inventory' || id==='tables') renderNotifDropdown();
+};
+
+/* =====================================================================
+   BOOT
+===================================================================== */
+/* =====================================================================
+   GLOBAL ERROR SAFETY NET
+   Uncaught errors used to fail completely silently — a button click would
+   just do nothing, with no clue why. Now they show up as a toast so staff
+   (and you) immediately know something broke, instead of assuming a
+   feature is missing when it actually just hit a bug.
+===================================================================== */
+window.addEventListener('error', (e)=>{
+  console.error('Uncaught error:', e.error || e.message);
+  try{ showToast(`Something went wrong: ${e.message}. Try again, and tell your admin if it repeats.`, 'error'); }catch(_){}
+});
+window.addEventListener('unhandledrejection', (e)=>{
+  console.error('Unhandled promise rejection:', e.reason);
+  try{ showToast(`Something went wrong: ${e.reason && e.reason.message ? e.reason.message : e.reason}. Try again, and tell your admin if it repeats.`, 'error'); }catch(_){}
+});
+
+(async function boot(){
+  STATE.theme = await Storage.get('theme', 'dark');
+  document.documentElement.setAttribute('data-theme', STATE.theme);
+  STATE.sidebarCollapsed = await Storage.get('sidebarCollapsed', false);
+  document.getElementById('sidebar').classList.toggle('collapsed', STATE.sidebarCollapsed);
+  document.getElementById('shell').classList.toggle('collapsed', STATE.sidebarCollapsed);
+  STATE.offlineQueue = await Storage.get('offlineQueue', []);
+
+  // Supabase is the real shared database — every device loads the same
+  // data from here. Only fall back to this browser's local copy if
+  // Supabase isn't configured yet, or the network call fails.
+  const gotSupabaseData = await DB.loadAll();
+  if(!gotSupabaseData){
+    const savedMenu = await Storage.get('menu', null); if(savedMenu) replaceArrayContents(MENU, savedMenu);
+    const savedTables = await Storage.get('tables', null); if(savedTables) replaceArrayContents(TABLES, savedTables);
+    const savedStaff = await Storage.get('staff', null); if(savedStaff) replaceArrayContents(STAFF, savedStaff);
+    const savedInventory = await Storage.get('inventory', null); if(savedInventory) replaceArrayContents(INVENTORY, savedInventory);
+    const savedLocations = await Storage.get('locations', null); if(savedLocations) replaceArrayContents(LOCATIONS, savedLocations);
+    const savedOrders = await Storage.get('orders', null); if(savedOrders) replaceArrayContents(ORDERS_KITCHEN, savedOrders);
+    const savedPaymentsDue = await Storage.get('paymentsDue', null); if(savedPaymentsDue) replaceArrayContents(PAYMENTS_DUE, savedPaymentsDue);
+    const savedCompleted = await Storage.get('completedPayments', null); if(savedCompleted) replaceArrayContents(COMPLETED_PAYMENTS, savedCompleted);
+    const savedPOs = await Storage.get('purchaseOrders', null); if(savedPOs) replaceArrayContents(PURCHASE_ORDERS, savedPOs);
+    const savedNotifs = await Storage.get('notifications', null); if(savedNotifs) replaceArrayContents(NOTIFICATIONS, savedNotifs);
+    const savedTax = await Storage.get('taxConfig', null); if(savedTax) Object.assign(TAX_CONFIG, savedTax);
+    const savedBiz = await Storage.get('businessConfig', null); if(savedBiz) Object.assign(CONFIG, savedBiz);
+  }
+  // Audit log always keeps its own local mirror too, regardless of source above.
+  const savedAudit = await Storage.get('audit_log', null); if(savedAudit && !gotSupabaseData) replaceArrayContents(AUDIT_LOG, savedAudit);
+
+  updateConnBadge();
+  updateNotifPermUI();
+  initRoleGrid();
+  setDate();
+  renderNotifDropdown();
+  startLiveSync();
+})();
+
+/* =====================================================================
+   LIVE SYNC (poll-based)
+   Keeps every device showing current data without needing a manual
+   reload — this is what makes the Kitchen Display actually usable
+   in a live restaurant. Polls Supabase every few seconds and silently
+   re-renders any screen that's currently showing shared data. Screens
+   with in-progress typing (Settings, New Order, End of Day) are left
+   alone so a refresh never wipes out what someone's mid-way through.
+===================================================================== */
+const LIVE_REFRESH_VIEWS = ['kds','tables','payments','inventory','dashboard','myorders','purchasing','audit','transactions'];
+function startLiveSync(){
+  if(!BACKEND.supabaseReady) return;
+  if(STATE._syncInterval) clearInterval(STATE._syncInterval);
+  STATE._syncInterval = setInterval(async ()=>{
+    if(!STATE.role || !BACKEND.supabaseReady) return;
+    const ok = await DB.loadAll();
+    if(ok && LIVE_REFRESH_VIEWS.includes(STATE.view)){
+      goView(STATE.view);
+    }
+  }, 5000);
+}
+function stopLiveSync(){
+  if(STATE._syncInterval){ clearInterval(STATE._syncInterval); STATE._syncInterval = null; }
+}
+</script>
+</body>
+</html>
