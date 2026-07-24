@@ -618,7 +618,11 @@ const DB = {
     if(!BACKEND.supabaseReady || !table) return;
     try{
       if(Array.isArray(value) && value.length){
-        const {error} = await BACKEND.client.from(table).upsert(value, {onConflict:'id'});
+        const uniqueRows = [...new Map(value.map(row => [row.id, row])).values()];
+
+const { error } = await BACKEND.client
+    .from(table)
+    .upsert(uniqueRows, { onConflict: 'id' });
         if(error){
           BACKEND.failedTables.add(key);
           showToast(`⚠ NOT saved to the shared database — this only exists on this device until fixed: ${error.message}`, 'error');
